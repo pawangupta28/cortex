@@ -4,7 +4,7 @@
 
 ## What runs today
 - `docker compose up --build` builds an image that ingests data and runs the eval at build time, then serves the UI, API and MCP on port 8000 with a healthcheck.
-- CI on every push: lint → 37 tests → ingest → full evaluation → gate. The report is uploaded as a build artifact.
+- CI on every push: lint → 40 tests → ingest → full evaluation → gate. The report is uploaded as a build artifact.
 
 ## Free-tier topology (Designed)
 
