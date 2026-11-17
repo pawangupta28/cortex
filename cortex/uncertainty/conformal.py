@@ -31,14 +31,18 @@ DEFAULT_WEIGHTS = {"bias": -2.0, "plan_conf": 1.5, "sql_ok": 1.0, "has_rows": 1.
                    "unsupported": -4.0}
 
 
-def _path():
-    return settings.artifacts_dir / "confidence_model.json"
+def _path(mode: str = "offline"):
+    # Thresholds are calibrated per mode: an LLM changes the score distribution (spec agreement,
+    # rewrites), so offline-calibrated thresholds would wrongly refuse LLM answers.
+    return settings.artifacts_dir / ("confidence_model.json" if mode == "offline" else f"confidence_model.{mode}.json")
 
 
 class ConfidenceModel:
     def __init__(self, weights: dict | None = None, threshold: float | None = None, alpha: float | None = None,
-                 thresholds: dict[str, float] | None = None, load_saved: bool = True):
-        saved = json.loads(_path().read_text(encoding="utf-8")) if load_saved and _path().exists() else {}
+                 thresholds: dict[str, float] | None = None, load_saved: bool = True, mode: str = "offline"):
+        self.mode = mode
+        path = _path(mode)
+        saved = json.loads(path.read_text(encoding="utf-8")) if load_saved and path.exists() else {}
         self.weights = weights or saved.get("weights", DEFAULT_WEIGHTS)
         self.threshold = threshold if threshold is not None else saved.get("q_hat")
         self.thresholds: dict[str, float] = thresholds if thresholds is not None else saved.get("q_hat_by_intent", {})
@@ -74,7 +78,7 @@ class ConfidenceModel:
         return float(nonconf[k - 1])
 
     def save(self) -> None:
-        _path().write_text(encoding="utf-8", data=json.dumps({"weights": self.weights, "q_hat": self.threshold,
+        _path(self.mode).write_text(encoding="utf-8", data=json.dumps({"weights": self.weights, "q_hat": self.threshold,
                                        "q_hat_by_intent": self.thresholds, "alpha": self.alpha}, indent=2))
 
 

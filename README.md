@@ -49,7 +49,7 @@ python -m cortex.cli --domain finance serve          # UI + API on http://127.0.
 python -m cortex.cli --domain ecommerce init --synthetic
 python -m cortex.cli --domain ecommerce serve
 
-python -m pytest -q                                  # 37 tests; finance end-to-end skips without SEC data
+python -m pytest -q                                  # 40 tests; finance end-to-end skips without SEC data
 ```
 
 Try:
@@ -112,7 +112,16 @@ Router (simulation with known ground truth): 58.7% lower cost per call than alwa
 
 ## Turning on real LLMs (free tiers)
 
-Copy `.env.example` to `.env` and set any of `GROQ_API_KEY`, `GEMINI_API_KEY` or `OPENROUTER_API_KEY`. Model names change often, so also set the `*_MODEL` variables. With keys set, the planner and query spec come from the model and the deterministic parser cross-checks them. The writer becomes the model, and its numbers are still verified. The bandit routes between providers, using verifier outcomes as its reward.
+```bash
+cp .env.example .env          # Windows: copy .env.example .env   — then fill in OPENROUTER_API_KEY
+python -m cortex.cli --domain finance eval --sample 15     # about 45 LLM calls, fits free daily limits
+```
+
+- `.env` is read automatically and is git-ignored. Real environment variables take precedence over it.
+- Live runs write `evals/<domain>/REPORT.llm.md` and never overwrite the offline baseline. The report adds the models used, how often the verifier forced a rewrite, the share of verified sentences, and shadow cost.
+- Confidence thresholds are calibrated separately for live and offline modes, because an LLM changes the score distribution.
+- The gateway paces calls (`CORTEX_MIN_CALL_INTERVAL`), waits out 429s, falls back to plain-text output when a model rejects JSON mode, and drops to the offline path if every provider is down.
+- With keys set, the model writes the plan, the query spec and the answer. The deterministic parser cross-checks the spec, and the verifier still checks every number.
 
 ## Use from Claude Code (MCP)
 

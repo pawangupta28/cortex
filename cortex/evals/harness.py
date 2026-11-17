@@ -221,11 +221,28 @@ def cache_study(cx: Cortex, items: list[dict]) -> dict:
                     "compiled query spec, so they never depend on embedding similarity."}
 
 
-def run(write_report: bool = True) -> dict:
+def _sample(items: list[dict], n: int) -> list[dict]:
+    """Deterministic stratified sample: keeps every question type, for rate-limited free LLM tiers."""
+    by_type: dict[str, list[dict]] = {}
+    for it in sorted(items, key=lambda x: x["id"]):
+        by_type.setdefault(it["type"], []).append(it)
+    out, i = [], 0
+    while len(out) < min(n, len(items)):
+        for typ in sorted(by_type):
+            if i < len(by_type[typ]) and len(out) < n:
+                out.append(by_type[typ][i])
+        i += 1
+    return out
+
+
+def run(write_report: bool = True, sample: int | None = None) -> dict:
     t0 = time.time()
     items = write_golden()
+    if sample:
+        items = _sample(items, sample)
     cx = Cortex()
-    cx.conf = ConfidenceModel(load_saved=False)       # start uncalibrated: no saved weights or thresholds
+    mode = "online" if cx.gw.online else "offline"
+    cx.conf = ConfidenceModel(load_saved=False, mode=mode)   # start uncalibrated: no saved weights or thresholds
     records = []
     for it in items:
         ans = cx.ask(it["question"], use_cache=False)
@@ -233,7 +250,9 @@ def run(write_report: bool = True) -> dict:
         records.append({"id": it["id"], "type": it["type"], "split": it["split"], "correct": grade(it, ans),
                         "intent": ans.intent.value,
                         "abstained": ans.abstained, "confidence": ans.confidence, "signals": sig,
-                        "latency_ms": ans.latency_ms, "answer": ans.text[:300]})
+                        "latency_ms": ans.latency_ms, "answer": ans.text[:300], "model": ans.model,
+                        "rewritten": ans.__dict__.get("rewritten", False), "cost_usd": ans.cost_usd,
+                        "verified_rate": (sum(c.verified for c in ans.claims) / len(ans.claims)) if ans.claims else 0.0})
 
     # --- accuracy by type
     acc = {}
@@ -245,7 +264,7 @@ def run(write_report: bool = True) -> dict:
     answerable = lambda r: r["type"] != "unanswerable"             # noqa: E731
     dev = [r for r in records if r["split"] == "dev" and not r["abstained"]]
     w = ConfidenceModel.fit_weights([r["signals"] for r in dev], [int(r["correct"]) for r in dev])
-    model = ConfidenceModel(weights=w, load_saved=False)
+    model = ConfidenceModel(weights=w, load_saved=False, mode=mode)
     for r in records:
         r["score_fitted"] = model.score(r["signals"]) if r["signals"] else 0.0
         r["score_default"] = ConfidenceModel(load_saved=False).score(r["signals"]) if r["signals"] else 0.0
@@ -301,15 +320,21 @@ def run(write_report: bool = True) -> dict:
         "redteam": run_redteam(cx),
         "router_simulation": simulate(),
         "cache": cache_study(cx, items),
+        "llm": {"models": sorted({r["model"] for r in records if r["model"]}),
+                "rewrite_rate": round(sum(r["rewritten"] for r in records) / len(records), 3),
+                "verified_sentence_rate": round(float(np.mean([r["verified_rate"] for r in records if not r["abstained"]] or [0])), 3),
+                "shadow_cost_usd": round(sum(r["cost_usd"] for r in records), 4)},
+        "sample": sample,
         "failures": [{"id": r["id"], "answer": r["answer"]} for r in records if not r["correct"]][:25],
         "runtime_s": round(time.time() - t0, 1),
     }
+    suffix = ".llm" if cx.gw.online else ""          # live-LLM runs never overwrite the offline baseline
     if write_report:
-        out = settings.artifacts_dir / "eval_report.json"
+        out = settings.artifacts_dir / f"eval_report{suffix}.json"
         out.write_text(encoding="utf-8", data=json.dumps(report, indent=2, default=float))
-        (settings.artifacts_dir / "eval_records.jsonl").write_text(encoding="utf-8", data=
+        (settings.artifacts_dir / f"eval_records{suffix}.jsonl").write_text(encoding="utf-8", data=
             "\n".join(json.dumps(r, default=float) for r in records))
-        (eval_dir() / "REPORT.md").write_text(encoding="utf-8", data=to_markdown(report))
+        (eval_dir() / f"REPORT{suffix}.md").write_text(encoding="utf-8", data=to_markdown(report))
     return report
 
 
@@ -330,6 +355,9 @@ def to_markdown(r: dict) -> str:
     L += [f"| **overall** | **{m:.1%}** | [{lo:.1%}, {hi:.1%}] |", "",
           f"Smallest change this test set can reliably detect: ±{r['min_detectable_effect_overall']:.1%} (80% power).", "",
           f"Latency p50 {r['latency_ms']['p50']} ms, p95 {r['latency_ms']['p95']} ms.", "",
+          f"Models: {', '.join(r['llm']['models'])} · verifier-forced rewrites: {r['llm']['rewrite_rate']:.0%} of questions · "
+          f"verified sentences: {r['llm']['verified_sentence_rate']:.0%} · shadow cost ${r['llm']['shadow_cost_usd']}"
+          + (f" · stratified sample of {r['sample']}" if r.get("sample") else ""), "",
           "## Retrieval study (reference documents)", "", "| Retriever | Recall@3 | CI | Recall@1 | MRR |", "| --- | --- | --- | --- | --- |"]
     for mode in ("bm25", "dense", "hybrid"):
         x = r["retrieval"][mode]

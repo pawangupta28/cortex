@@ -7,6 +7,7 @@ shadow-cost accounting, and graceful degradation to a deterministic offline path
 from __future__ import annotations
 
 import json
+import os
 import random
 import time
 from dataclasses import dataclass
@@ -20,7 +21,9 @@ from cortex.telemetry.tracer import span
 
 
 class ProviderError(RuntimeError):
-    pass
+    def __init__(self, msg: str, retry_after: float | None = None):
+        super().__init__(msg)
+        self.retry_after = retry_after
 
 
 @dataclass
@@ -41,25 +44,41 @@ def estimate_tokens(text: str) -> int:
 
 
 class OpenAICompatProvider:
-    def __init__(self, cfg: ProviderConfig, timeout: float = 30.0):
+    def __init__(self, cfg: ProviderConfig, timeout: float = 60.0):
         self.cfg = cfg
         self.client = httpx.Client(timeout=timeout)
+        self.json_mode_ok = True              # many free models reject response_format; learn it once
+        self.min_interval = float(os.environ.get("CORTEX_MIN_CALL_INTERVAL", "0"))
+        self._last_call = 0.0
 
     def chat(self, messages: list[dict], json_mode: bool = False, max_tokens: int = 800,
              temperature: float = 0.0) -> LLMResult:
         body = {"model": self.cfg.model, "messages": messages, "max_tokens": max_tokens, "temperature": temperature}
-        if json_mode:
+        if json_mode and self.json_mode_ok:
             body["response_format"] = {"type": "json_object"}
+        wait = self.min_interval - (time.time() - self._last_call)     # client-side pacing for free tiers
+        if wait > 0:
+            time.sleep(wait)
         t0 = time.time()
+        self._last_call = t0
         try:
             r = self.client.post(f"{self.cfg.base_url}/chat/completions", json=body,
-                                 headers={"Authorization": f"Bearer {self.cfg.api_key}"})
+                                 headers={"Authorization": f"Bearer {self.cfg.api_key}",
+                                          "HTTP-Referer": "https://github.com/pawangupta28/cortex", "X-Title": "Cortex"})
         except httpx.HTTPError as e:
             raise ProviderError(f"{self.cfg.name}: {e}") from e
+        if r.status_code == 400 and "response_format" in body:
+            self.json_mode_ok = False                                  # retry once without JSON mode
+            return self.chat(messages, json_mode=False, max_tokens=max_tokens, temperature=temperature)
+        if r.status_code == 429:
+            ra = r.headers.get("retry-after")
+            raise ProviderError(f"{self.cfg.name}: rate limited", retry_after=float(ra) if ra and ra.replace(".", "").isdigit() else 20.0)
         if r.status_code >= 400:
             raise ProviderError(f"{self.cfg.name}: HTTP {r.status_code} {r.text[:200]}")
         data = r.json()
-        text = data["choices"][0]["message"]["content"] or ""
+        if "choices" not in data:
+            raise ProviderError(f"{self.cfg.name}: unexpected response {str(data)[:200]}")
+        text = data["choices"][0]["message"].get("content") or ""
         usage = data.get("usage", {})
         it = usage.get("prompt_tokens", estimate_tokens(json.dumps(messages)))
         ot = usage.get("completion_tokens", estimate_tokens(text))
@@ -139,7 +158,10 @@ class Gateway:
                 res = prov.chat(messages, json_mode=json_mode, max_tokens=max_tokens)
                 self.breakers[name].success()
                 return res
-            except ProviderError:
+            except ProviderError as e:
+                if e.retry_after is not None and attempt < self.retries:
+                    time.sleep(min(e.retry_after, 60.0))     # rate limit: wait as told, not a provider fault
+                    continue
                 self.breakers[name].failure()
                 if not self.breakers[name].available:
                     return None

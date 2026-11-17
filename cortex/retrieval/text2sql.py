@@ -84,7 +84,10 @@ class Text2SQL:
             offline=lambda: json.dumps(offline.to_dict() if offline else {"metric": None}))
         data = parse_json(res.text) or {}
         if not data.get("metric"):
-            return None
+            # the model found no metric; if the deterministic parser did, trust it at lower confidence
+            if offline:
+                offline.confidence = round(min(offline.confidence, 0.75), 2)
+            return offline
         try:
             spec = QuerySpec(metric=data["metric"], dimensions=list(data.get("dimensions") or []),
                              filters=dict(data.get("filters") or {}), order=data.get("order"),

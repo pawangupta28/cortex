@@ -4,7 +4,7 @@ Each item is specified well enough to build in about a day, with the measurement
 
 | # | Item | Approach | How it will be measured |
 | --- | --- | --- | --- |
-| 1 | **Live LLMs** (Groq / Gemini / OpenRouter free tiers) | Already wired: the planner, QuerySpec and writer go through the gateway; the verifier forces one rewrite on unverified numbers; the bandit learns from verifier outcomes | Golden-set accuracy, verified-sentence rate, rewrite rate, cost and latency: LLM vs offline, paired bootstrap |
+| 1 | **Live LLMs** (Groq / Gemini / OpenRouter free tiers) | Wired and tested end to end against a mock OpenAI-compatible server (JSON-mode fallback, 429 waits, verifier-forced rewrites, separate report, per-mode calibration). Remaining: run with a real key | Golden-set accuracy, verified-sentence rate, rewrite rate, cost and latency: LLM vs offline, paired bootstrap |
 | 2 | **Real embeddings + reranker** | `bge-small` / `nomic-embed` behind the existing embedder interface (`CORTEX_EMBEDDER=st`); `bge-reranker` on the fused top 20 | Recall@3 and MRR vs current BM25 / LSA / hybrid; the NVIDIA–TSMC miss as a named case |
 | 3 | **LLM-as-judge** | A rubric per answer type, a judge from a different model family than the writer, and randomised order in pairwise comparisons | Cohen's κ against ~50 answers graded by hand; ship only if κ ≥ 0.6 |
 | 4 | **Native function-calling agent** | The model chooses MCP tools in a loop, inside the existing budgets, policy checks, checkpoints and approval gate | Task success, steps per task, cost per task vs fixed decomposition |

@@ -93,7 +93,7 @@ class Cortex:
         self.t2s = Text2SQL(self.gw, self.layer)
         self.policy = PolicyEngine()
         self.ctx = ContextBuilder(settings.context_budget_tokens)
-        self.conf = ConfidenceModel()
+        self.conf = ConfidenceModel(mode="online" if self.gw.online else "offline")
         # retriever weights for fusion (bm25, dense); chosen by the retrieval study in the eval report
         self.doc_weights = (1.0, 1.0)
         self.cache = SemanticCache(self.corpus.query_embedder.embed, threshold=settings.cache_threshold)
@@ -194,7 +194,9 @@ class Cortex:
                 text = res.text.strip()
                 ignore = {float(x) for x in re.findall(r"\d+", question)}
                 claims = verify(text, evidence, ignore)
+                rewritten = False
                 if self.gw.online and not all(c.verified for c in claims):
+                    rewritten = True
                     bad = [c.text for c in claims if not c.verified]
                     res2 = self.gw.complete("write", messages + [
                         {"role": "assistant", "content": text},
@@ -234,6 +236,7 @@ class Cortex:
                          trace_id=current_trace_id(), model=res.model, cost_usd=res.cost_usd,
                          latency_ms=round((time.time() - t0) * 1000, 1))
             ans.__dict__["signals"] = signals
+            ans.__dict__["rewritten"] = rewritten
             if use_cache and not abstained:
                 self.cache.put(question, scope, ans, signature=sig)
             return ans

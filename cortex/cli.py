@@ -37,6 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--approve", action="store_true")
     s = sub.add_parser("eval")
     s.add_argument("--gate", action="store_true")
+    s.add_argument("--sample", type=int, default=None, help="stratified sample size (free-tier rate limits)")
     s.add_argument("--save-baseline", action="store_true")
     s = sub.add_parser("serve")
     s.add_argument("--port", type=int, default=8000)
@@ -89,8 +90,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if a.cmd == "eval":
         from cortex.evals.harness import eval_dir, gate, run
-        r = run()
-        print((eval_dir() / "REPORT.md").read_text(encoding="utf-8"))
+        r = run(sample=a.sample)
+        name = "REPORT.llm.md" if r["mode"] == "online" else "REPORT.md"
+        print((eval_dir() / name).read_text(encoding="utf-8"))
         if a.save_baseline:
             (eval_dir() / "baseline.json").write_text(encoding="utf-8", data=json.dumps(
                 {"accuracy_overall": r["accuracy_overall"][0], "asr_defences_on": r["redteam"]["defences_on"]["asr"]}, indent=2))

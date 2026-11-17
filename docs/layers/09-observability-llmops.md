@@ -15,7 +15,7 @@ Spans are written to `artifacts/<domain>/traces.jsonl` and served at `/v1/traces
 Append-only JSONL with every tool-policy decision (allow/deny + reason), every quarantined passage and every approval.
 
 ## LLMOps
-- **Eval gate in CI** on every push: lint, 37 tests, ingest, the full e-commerce eval. The build fails if overall accuracy's upper confidence bound falls below the baseline minus 3 points, if attack success rate rises, or if row-level security leaks.
+- **Eval gate in CI** on every push: lint, 40 tests, ingest, the full e-commerce eval. The build fails if overall accuracy's upper confidence bound falls below the baseline minus 3 points, if attack success rate rises, or if row-level security leaks.
 - **Baselines per domain** in `evals/<domain>/baseline.json`.
 
 ## Next (Designed)

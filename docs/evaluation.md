@@ -49,10 +49,10 @@ Every design decision in Cortex cites a measured number, and every push is gated
 ## Honest limits
 - The question templates were used while building the parser, so these are **development benchmarks and regression baselines**, not estimates of accuracy on unseen users.
 - Holdouts are small (about 15–20 answered questions), so conformal coverage can't be confirmed at this size.
-- All numbers above are from **offline mode**: no LLM wrote these answers. The LLM path is the first item on the [roadmap](roadmap.md), and its numbers will be reported side by side with these.
+- All numbers above are from **offline mode**: no LLM wrote these answers. Live runs (`--sample N` for free-tier limits) write `REPORT.llm.md` next to the offline report, with rewrite rate, verified-sentence rate and cost, so the two modes can be compared directly.
 
 ## CI gate
-On every push (`.github/workflows/ci.yml`): lint → 37 tests → ingest → full eval. The build fails if:
+On every push (`.github/workflows/ci.yml`): lint → 40 tests → ingest → full eval. The build fails if:
 - the upper bound of overall accuracy's 95% interval drops below the baseline minus 3 points;
 - the attack success rate with defences on rises;
 - any row-level security leak appears.

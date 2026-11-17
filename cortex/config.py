@@ -8,6 +8,24 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _load_dotenv(path: Path = ROOT / ".env") -> None:
+    """Minimal .env reader (KEY=VALUE lines). Real environment variables always win."""
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        k, v = k.strip(), v.strip().strip('"').strip("'")
+        if k and v and k not in os.environ:
+            os.environ[k] = v
+
+
+if not os.environ.get("CORTEX_NO_DOTENV"):
+    _load_dotenv()
+
+
 def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
@@ -64,13 +82,13 @@ class Settings:
         """
         out: list[ProviderConfig] = []
         if _env("GROQ_API_KEY"):
-            out.append(ProviderConfig("groq", "https://api.groq.com/openai/v1", _env("GROQ_API_KEY"),
+            out.append(ProviderConfig("groq", _env("GROQ_BASE_URL", "https://api.groq.com/openai/v1"), _env("GROQ_API_KEY"),
                                       _env("GROQ_MODEL", "llama-3.3-70b-versatile"), 0.6))
         if _env("GEMINI_API_KEY"):
-            out.append(ProviderConfig("gemini", "https://generativelanguage.googleapis.com/v1beta/openai",
+            out.append(ProviderConfig("gemini", _env("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai"),
                                       _env("GEMINI_API_KEY"), _env("GEMINI_MODEL", "gemini-2.5-flash"), 0.3))
         if _env("OPENROUTER_API_KEY"):
-            out.append(ProviderConfig("openrouter", "https://openrouter.ai/api/v1", _env("OPENROUTER_API_KEY"),
+            out.append(ProviderConfig("openrouter", _env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"), _env("OPENROUTER_API_KEY"),
                                       _env("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free"), 0.0))
         return out
 
