@@ -1,0 +1,102 @@
+{"id": "revenue_2017#0", "template": "revenue_2017", "type": "metric_value", "question": "What was total revenue in 2017?", "gold": {"values": [643937.74]}, "split": "calib"}
+{"id": "revenue_2017#1", "template": "revenue_2017", "type": "metric_value", "question": "How much did we sell in 2017?", "gold": {"values": [643937.74]}, "split": "calib"}
+{"id": "revenue_2017#2", "template": "revenue_2017", "type": "metric_value", "question": "Total sales for 2017", "gold": {"values": [643937.74]}, "split": "calib"}
+{"id": "revenue_2018#0", "template": "revenue_2018", "type": "metric_value", "question": "What was total revenue in 2018?", "gold": {"values": [1173701.07]}, "split": "dev"}
+{"id": "revenue_2018#1", "template": "revenue_2018", "type": "metric_value", "question": "How much did we sell in 2018?", "gold": {"values": [1173701.07]}, "split": "dev"}
+{"id": "revenue_2018#2", "template": "revenue_2018", "type": "metric_value", "question": "Total sales for 2018", "gold": {"values": [1173701.07]}, "split": "dev"}
+{"id": "orders_2018_01#0", "template": "orders_2018_01", "type": "metric_value", "question": "How many orders were placed in January 2018?", "gold": {"values": [628]}, "split": "dev"}
+{"id": "orders_2018_01#1", "template": "orders_2018_01", "type": "metric_value", "question": "Number of orders in January 2018", "gold": {"values": [628]}, "split": "dev"}
+{"id": "orders_2018_02#0", "template": "orders_2018_02", "type": "metric_value", "question": "How many orders were placed in February 2018?", "gold": {"values": [641]}, "split": "holdout"}
+{"id": "orders_2018_02#1", "template": "orders_2018_02", "type": "metric_value", "question": "Number of orders in February 2018", "gold": {"values": [641]}, "split": "holdout"}
+{"id": "orders_2018_03#0", "template": "orders_2018_03", "type": "metric_value", "question": "How many orders were placed in March 2018?", "gold": {"values": [733]}, "split": "dev"}
+{"id": "orders_2018_03#1", "template": "orders_2018_03", "type": "metric_value", "question": "Number of orders in March 2018", "gold": {"values": [733]}, "split": "dev"}
+{"id": "orders_2018_04#0", "template": "orders_2018_04", "type": "metric_value", "question": "How many orders were placed in April 2018?", "gold": {"values": [761]}, "split": "dev"}
+{"id": "orders_2018_04#1", "template": "orders_2018_04", "type": "metric_value", "question": "Number of orders in April 2018", "gold": {"values": [761]}, "split": "dev"}
+{"id": "orders_2018_05#0", "template": "orders_2018_05", "type": "metric_value", "question": "How many orders were placed in May 2018?", "gold": {"values": [880]}, "split": "dev"}
+{"id": "orders_2018_05#1", "template": "orders_2018_05", "type": "metric_value", "question": "Number of orders in May 2018", "gold": {"values": [880]}, "split": "dev"}
+{"id": "orders_2018_06#0", "template": "orders_2018_06", "type": "metric_value", "question": "How many orders were placed in June 2018?", "gold": {"values": [868]}, "split": "holdout"}
+{"id": "orders_2018_06#1", "template": "orders_2018_06", "type": "metric_value", "question": "Number of orders in June 2018", "gold": {"values": [868]}, "split": "holdout"}
+{"id": "review_office_furniture#0", "template": "review_office_furniture", "type": "metric_value", "question": "What is the average review score for office furniture?", "gold": {"values": [3.234]}, "split": "calib"}
+{"id": "review_office_furniture#1", "template": "review_office_furniture", "type": "metric_value", "question": "Average rating of office furniture", "gold": {"values": [3.234]}, "split": "calib"}
+{"id": "review_auto#0", "template": "review_auto", "type": "metric_value", "question": "What is the average review score for auto parts?", "gold": {"values": [3.539]}, "split": "dev"}
+{"id": "review_auto#1", "template": "review_auto", "type": "metric_value", "question": "Average rating of auto parts", "gold": {"values": [3.539]}, "split": "dev"}
+{"id": "review_health_beauty#0", "template": "review_health_beauty", "type": "metric_value", "question": "What is the average review score for health and beauty?", "gold": {"values": [4.054]}, "split": "calib"}
+{"id": "review_health_beauty#1", "template": "review_health_beauty", "type": "metric_value", "question": "Average rating of health and beauty", "gold": {"values": [4.054]}, "split": "calib"}
+{"id": "review_watches_gifts#0", "template": "review_watches_gifts", "type": "metric_value", "question": "What is the average review score for watches?", "gold": {"values": [4.052]}, "split": "calib"}
+{"id": "review_watches_gifts#1", "template": "review_watches_gifts", "type": "metric_value", "question": "Average rating of watches", "gold": {"values": [4.052]}, "split": "calib"}
+{"id": "review_bed_bath_table#0", "template": "review_bed_bath_table", "type": "metric_value", "question": "What is the average review score for bed bath and table?", "gold": {"values": [3.93]}, "split": "calib"}
+{"id": "review_bed_bath_table#1", "template": "review_bed_bath_table", "type": "metric_value", "question": "Average rating of bed bath and table", "gold": {"values": [3.93]}, "split": "calib"}
+{"id": "review_computers_accessories#0", "template": "review_computers_accessories", "type": "metric_value", "question": "What is the average review score for computers?", "gold": {"values": [3.927]}, "split": "dev"}
+{"id": "review_computers_accessories#1", "template": "review_computers_accessories", "type": "metric_value", "question": "Average rating of computers", "gold": {"values": [3.927]}, "split": "dev"}
+{"id": "review_toys#0", "template": "review_toys", "type": "metric_value", "question": "What is the average review score for toys?", "gold": {"values": [4.033]}, "split": "dev"}
+{"id": "review_toys#1", "template": "review_toys", "type": "metric_value", "question": "Average rating of toys", "gold": {"values": [4.033]}, "split": "dev"}
+{"id": "review_housewares#0", "template": "review_housewares", "type": "metric_value", "question": "What is the average review score for housewares?", "gold": {"values": [3.985]}, "split": "calib"}
+{"id": "review_housewares#1", "template": "review_housewares", "type": "metric_value", "question": "Average rating of housewares", "gold": {"values": [3.985]}, "split": "calib"}
+{"id": "late_SP#0", "template": "late_SP", "type": "metric_value", "question": "What is the late delivery rate in Sao Paulo?", "gold": {"values": [0.1188]}, "split": "dev"}
+{"id": "late_SP#1", "template": "late_SP", "type": "metric_value", "question": "How often are deliveries late in SP?", "gold": {"values": [0.1188]}, "split": "dev"}
+{"id": "days_SP#0", "template": "days_SP", "type": "metric_value", "question": "What is the average delivery time in Sao Paulo?", "gold": {"values": [17.08]}, "split": "dev"}
+{"id": "days_SP#1", "template": "days_SP", "type": "metric_value", "question": "How long does shipping take to SP?", "gold": {"values": [17.08]}, "split": "dev"}
+{"id": "late_RJ#0", "template": "late_RJ", "type": "metric_value", "question": "What is the late delivery rate in Rio de Janeiro?", "gold": {"values": [0.1027]}, "split": "dev"}
+{"id": "late_RJ#1", "template": "late_RJ", "type": "metric_value", "question": "How often are deliveries late in RJ?", "gold": {"values": [0.1027]}, "split": "dev"}
+{"id": "days_RJ#0", "template": "days_RJ", "type": "metric_value", "question": "What is the average delivery time in Rio de Janeiro?", "gold": {"values": [17.01]}, "split": "dev"}
+{"id": "days_RJ#1", "template": "days_RJ", "type": "metric_value", "question": "How long does shipping take to RJ?", "gold": {"values": [17.01]}, "split": "dev"}
+{"id": "late_BA#0", "template": "late_BA", "type": "metric_value", "question": "What is the late delivery rate in Bahia?", "gold": {"values": [0.219]}, "split": "holdout"}
+{"id": "late_BA#1", "template": "late_BA", "type": "metric_value", "question": "How often are deliveries late in BA?", "gold": {"values": [0.219]}, "split": "holdout"}
+{"id": "days_BA#0", "template": "days_BA", "type": "metric_value", "question": "What is the average delivery time in Bahia?", "gold": {"values": [23.87]}, "split": "dev"}
+{"id": "days_BA#1", "template": "days_BA", "type": "metric_value", "question": "How long does shipping take to BA?", "gold": {"values": [23.87]}, "split": "dev"}
+{"id": "late_PE#0", "template": "late_PE", "type": "metric_value", "question": "What is the late delivery rate in Pernambuco?", "gold": {"values": [0.1747]}, "split": "holdout"}
+{"id": "late_PE#1", "template": "late_PE", "type": "metric_value", "question": "How often are deliveries late in PE?", "gold": {"values": [0.1747]}, "split": "holdout"}
+{"id": "days_PE#0", "template": "days_PE", "type": "metric_value", "question": "What is the average delivery time in Pernambuco?", "gold": {"values": [23.34]}, "split": "dev"}
+{"id": "days_PE#1", "template": "days_PE", "type": "metric_value", "question": "How long does shipping take to PE?", "gold": {"values": [23.34]}, "split": "dev"}
+{"id": "late_MG#0", "template": "late_MG", "type": "metric_value", "question": "What is the late delivery rate in Minas Gerais?", "gold": {"values": [0.116]}, "split": "calib"}
+{"id": "late_MG#1", "template": "late_MG", "type": "metric_value", "question": "How often are deliveries late in MG?", "gold": {"values": [0.116]}, "split": "calib"}
+{"id": "days_MG#0", "template": "days_MG", "type": "metric_value", "question": "What is the average delivery time in Minas Gerais?", "gold": {"values": [16.8]}, "split": "dev"}
+{"id": "days_MG#1", "template": "days_MG", "type": "metric_value", "question": "How long does shipping take to MG?", "gold": {"values": [16.8]}, "split": "dev"}
+{"id": "top_late_cat#0", "template": "top_late_cat", "type": "metric_rank", "question": "Which product categories have the highest late delivery rate?", "gold": {"label": "office_furniture", "values": [0.3194]}, "split": "dev"}
+{"id": "top_late_cat#1", "template": "top_late_cat", "type": "metric_rank", "question": "Which category has the most late deliveries?", "gold": {"label": "office_furniture", "values": [0.3194]}, "split": "dev"}
+{"id": "low_review_cat#0", "template": "low_review_cat", "type": "metric_rank", "question": "Which categories have the lowest average review score?", "gold": {"label": "office_furniture", "values": [3.234]}, "split": "calib"}
+{"id": "low_review_cat#1", "template": "low_review_cat", "type": "metric_rank", "question": "What product category has the worst rating?", "gold": {"label": "office_furniture", "values": [3.234]}, "split": "calib"}
+{"id": "top_state_rev_2018#0", "template": "top_state_rev_2018", "type": "metric_rank", "question": "Top 3 states by revenue in 2018", "gold": {"label": "SP", "values": [489445.21]}, "split": "dev"}
+{"id": "top_state_rev_2018#1", "template": "top_state_rev_2018", "type": "metric_rank", "question": "Which states generated the most revenue in 2018?", "gold": {"label": "SP", "values": [489445.21]}, "split": "dev"}
+{"id": "trend_orders_2018#0", "template": "trend_orders_2018", "type": "metric_trend", "question": "Monthly order count trend in 2018", "gold": {"values": [628, 960]}, "split": "holdout"}
+{"id": "trend_orders_2018#1", "template": "trend_orders_2018", "type": "metric_trend", "question": "How did orders per month change over 2018?", "gold": {"values": [628, 960]}, "split": "holdout"}
+{"id": "doc_withdrawal#0", "template": "doc_withdrawal", "type": "docs", "question": "How many days do customers have to return a product?", "gold": {"doc_id": "returns_policy", "section": "Right of withdrawal", "fact": "7 days"}, "split": "dev"}
+{"id": "doc_withdrawal#1", "template": "doc_withdrawal", "type": "docs", "question": "What is the return window?", "gold": {"doc_id": "returns_policy", "section": "Right of withdrawal", "fact": "7 days"}, "split": "dev"}
+{"id": "doc_damaged#0", "template": "doc_damaged", "type": "docs", "question": "What happens if a product arrives damaged?", "gold": {"doc_id": "returns_policy", "section": "Damaged items", "fact": "photos"}, "split": "holdout"}
+{"id": "doc_damaged#1", "template": "doc_damaged", "type": "docs", "question": "Process for items that arrive broken", "gold": {"doc_id": "returns_policy", "section": "Damaged items", "fact": "photos"}, "split": "holdout"}
+{"id": "doc_refund_timing#0", "template": "doc_refund_timing", "type": "docs", "question": "How long do refunds take?", "gold": {"doc_id": "returns_policy", "section": "Refund timing", "fact": "10 business days"}, "split": "dev"}
+{"id": "doc_refund_timing#1", "template": "doc_refund_timing", "type": "docs", "question": "When is an approved refund paid?", "gold": {"doc_id": "returns_policy", "section": "Refund timing", "fact": "10 business days"}, "split": "dev"}
+{"id": "doc_late_comp#0", "template": "doc_late_comp", "type": "docs", "question": "What compensation is given for late deliveries?", "gold": {"doc_id": "shipping_sla", "section": "Compensation for late orders", "fact": "10%"}, "split": "holdout"}
+{"id": "doc_late_comp#1", "template": "doc_late_comp", "type": "docs", "question": "Do customers get a voucher when orders are late?", "gold": {"doc_id": "shipping_sla", "section": "Compensation for late orders", "fact": "10%"}, "split": "holdout"}
+{"id": "doc_probation#0", "template": "doc_probation", "type": "docs", "question": "When is a seller put on probation?", "gold": {"doc_id": "seller_quality_program", "section": "Thresholds", "fact": "3.5"}, "split": "dev"}
+{"id": "doc_probation#1", "template": "doc_probation", "type": "docs", "question": "What review score threshold triggers seller probation?", "gold": {"doc_id": "seller_quality_program", "section": "Thresholds", "fact": "3.5"}, "split": "dev"}
+{"id": "doc_remote_states#0", "template": "doc_remote_states", "type": "docs", "question": "Which states have longer delivery estimates?", "gold": {"doc_id": "shipping_sla", "section": "Estimated delivery date", "fact": "BA"}, "split": "dev"}
+{"id": "doc_remote_states#1", "template": "doc_remote_states", "type": "docs", "question": "Why do orders to Bahia take longer?", "gold": {"doc_id": "shipping_sla", "section": "Estimated delivery date", "fact": "BA"}, "split": "dev"}
+{"id": "doc_packaging#0", "template": "doc_packaging", "type": "docs", "question": "What are the packaging rules for fragile furniture?", "gold": {"doc_id": "seller_quality_program", "section": "Packaging requirements for fragile categories", "fact": "double-wall"}, "split": "dev"}
+{"id": "doc_packaging#1", "template": "doc_packaging", "type": "docs", "question": "Packaging requirements for office furniture sellers", "gold": {"doc_id": "seller_quality_program", "section": "Packaging requirements for fragile categories", "fact": "double-wall"}, "split": "dev"}
+{"id": "doc_shelf_life#0", "template": "doc_shelf_life", "type": "docs", "question": "How much shelf life must health products have?", "gold": {"doc_id": "category_notes", "section": "Health and beauty", "fact": "6 months"}, "split": "dev"}
+{"id": "doc_shelf_life#1", "template": "doc_shelf_life", "type": "docs", "question": "Rules for products close to expiry", "gold": {"doc_id": "category_notes", "section": "Health and beauty", "fact": "6 months"}, "split": "dev"}
+{"id": "doc_warranty#0", "template": "doc_warranty", "type": "docs", "question": "What is the warranty period for defective items?", "gold": {"doc_id": "returns_policy", "section": "Defective items", "fact": "90 days"}, "split": "calib"}
+{"id": "doc_warranty#1", "template": "doc_warranty", "type": "docs", "question": "What if a product stops working after a month?", "gold": {"doc_id": "returns_policy", "section": "Defective items", "fact": "90 days"}, "split": "calib"}
+{"id": "doc_carriers#0", "template": "doc_carriers", "type": "docs", "question": "What does the supplier bulletin say about carriers?", "gold": {"doc_id": "supplier_bulletin", "section": "Carrier changes", "fact": "second carrier"}, "split": "dev"}
+{"id": "doc_carriers#1", "template": "doc_carriers", "type": "docs", "question": "Are there any carrier changes this quarter?", "gold": {"doc_id": "supplier_bulletin", "section": "Carrier changes", "fact": "second carrier"}, "split": "dev"}
+{"id": "doc_late_def#0", "template": "doc_late_def", "type": "docs", "question": "How is late delivery defined?", "gold": {"doc_id": "shipping_sla", "section": "Late delivery definition", "fact": "estimated delivery date"}, "split": "holdout"}
+{"id": "doc_late_def#1", "template": "doc_late_def", "type": "docs", "question": "When is an order considered late?", "gold": {"doc_id": "shipping_sla", "section": "Late delivery definition", "fact": "estimated delivery date"}, "split": "holdout"}
+{"id": "why_office_furniture#0", "template": "why_office_furniture", "type": "hybrid", "question": "Why do customers complain about office furniture?", "gold": {"any_of": ["late", "damaged", "broken", "scratched", "crushed", "cracked"]}, "split": "calib"}
+{"id": "why_office_furniture#1", "template": "why_office_furniture", "type": "hybrid", "question": "What are the main complaints in office furniture reviews?", "gold": {"any_of": ["late", "damaged", "broken", "scratched", "crushed", "cracked"]}, "split": "calib"}
+{"id": "why_auto#0", "template": "why_auto", "type": "hybrid", "question": "Why do customers complain about auto parts?", "gold": {"any_of": ["wrong", "fit", "late"]}, "split": "dev"}
+{"id": "why_auto#1", "template": "why_auto", "type": "hybrid", "question": "What are the main complaints in auto parts reviews?", "gold": {"any_of": ["wrong", "fit", "late"]}, "split": "dev"}
+{"id": "why_health_beauty#0", "template": "why_health_beauty", "type": "hybrid", "question": "Why do customers complain about health and beauty?", "gold": {"any_of": ["expir", "expiry"]}, "split": "dev"}
+{"id": "why_health_beauty#1", "template": "why_health_beauty", "type": "hybrid", "question": "What are the main complaints in health and beauty reviews?", "gold": {"any_of": ["expir", "expiry"]}, "split": "dev"}
+{"id": "why_watches_gifts#0", "template": "why_watches_gifts", "type": "hybrid", "question": "Why do customers complain about watches?", "gold": {"any_of": ["fake", "original", "copy"]}, "split": "dev"}
+{"id": "why_watches_gifts#1", "template": "why_watches_gifts", "type": "hybrid", "question": "What are the main complaints in watches reviews?", "gold": {"any_of": ["fake", "original", "copy"]}, "split": "dev"}
+{"id": "why_bed_bath_table#0", "template": "why_bed_bath_table", "type": "hybrid", "question": "Why do customers complain about bed bath and table?", "gold": {"any_of": ["size", "smaller", "tiny"]}, "split": "holdout"}
+{"id": "why_bed_bath_table#1", "template": "why_bed_bath_table", "type": "hybrid", "question": "What are the main complaints in bed bath and table reviews?", "gold": {"any_of": ["size", "smaller", "tiny"]}, "split": "holdout"}
+{"id": "why_computers_accessories#0", "template": "why_computers_accessories", "type": "hybrid", "question": "Why do customers complain about computers?", "gold": {"any_of": ["defect", "working", "faulty"]}, "split": "dev"}
+{"id": "why_computers_accessories#1", "template": "why_computers_accessories", "type": "hybrid", "question": "What are the main complaints in computers reviews?", "gold": {"any_of": ["defect", "working", "faulty"]}, "split": "dev"}
+{"id": "unanswerable_0#0", "template": "unanswerable_0", "type": "unanswerable", "question": "What is the capital of France?", "gold": {"abstain": true}, "split": "dev"}
+{"id": "unanswerable_1#0", "template": "unanswerable_1", "type": "unanswerable", "question": "Tell me a joke about databases", "gold": {"abstain": true}, "split": "holdout"}
+{"id": "unanswerable_2#0", "template": "unanswerable_2", "type": "unanswerable", "question": "What is the weather in Sao Paulo today?", "gold": {"abstain": true}, "split": "dev"}
+{"id": "unanswerable_3#0", "template": "unanswerable_3", "type": "unanswerable", "question": "How many employees does the company have?", "gold": {"abstain": true}, "split": "calib"}
+{"id": "unanswerable_4#0", "template": "unanswerable_4", "type": "unanswerable", "question": "What will revenue be in 2030?", "gold": {"abstain": true}, "split": "dev"}
+{"id": "unanswerable_5#0", "template": "unanswerable_5", "type": "unanswerable", "question": "Who is the CEO of the store?", "gold": {"abstain": true}, "split": "dev"}

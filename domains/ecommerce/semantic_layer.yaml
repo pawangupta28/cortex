@@ -1,0 +1,64 @@
+# Semantic layer: business metrics defined once, compiled to SQL deterministically.
+# The LLM never writes metric math; it only picks metric + dimensions + filters.
+base_view: order_facts
+
+metrics:
+  revenue:
+    sql: "ROUND(SUM(revenue), 2)"
+    description: "Total product revenue (sum of item prices), excluding freight"
+    synonyms: [revenue, sales, gmv, turnover, "money made", income, sell, sold, "did we sell"]
+  order_count:
+    sql: "COUNT(DISTINCT order_id)"
+    description: "Number of orders"
+    synonyms: ["number of orders", "order count", "how many orders", orders, volume]
+  avg_order_value:
+    sql: "ROUND(SUM(revenue) / NULLIF(COUNT(DISTINCT order_id), 0), 2)"
+    description: "Average order value"
+    synonyms: ["average order value", aov, "basket size", "average ticket"]
+  avg_review_score:
+    sql: "ROUND(AVG(review_score), 3)"
+    description: "Mean review score from 1 to 5"
+    synonyms: ["review score", rating, "average rating", satisfaction, "customer satisfaction", "review scores"]
+  one_star_rate:
+    sql: "ROUND(AVG(CASE WHEN review_score = 1 THEN 1.0 WHEN review_score IS NULL THEN NULL ELSE 0.0 END), 4)"
+    description: "Share of reviews that are 1-star"
+    synonyms: ["one star", "1-star", "1 star", "worst reviews"]
+  late_delivery_rate:
+    sql: "ROUND(AVG(CASE WHEN is_late THEN 1.0 ELSE 0.0 END), 4)"
+    where: "order_status = 'delivered'"
+    description: "Share of delivered orders that arrived after the estimated date"
+    synonyms: ["late delivery", "late deliveries", "late rate", "delayed", delays, "on-time", lateness, "shipping delays", "deliveries late", "delivered late", "arrive late", "arrives late", late]
+  avg_delivery_days:
+    sql: "ROUND(AVG(delivery_days), 2)"
+    where: "order_status = 'delivered'"
+    description: "Average days from purchase to delivery"
+    synonyms: ["delivery time", "days to deliver", "shipping time", "how long delivery takes", "how long does shipping take", "how long does delivery take", "how long do deliveries take", "delivery days"]
+  freight_share:
+    sql: "ROUND(SUM(freight) / NULLIF(SUM(revenue), 0), 4)"
+    description: "Freight cost as a share of revenue"
+    synonyms: [freight, "shipping cost", "delivery cost"]
+  repeat_customer_rate:
+    sql: "ROUND(AVG(CASE WHEN customer_orders > 1 THEN 1.0 ELSE 0.0 END), 4)"
+    grain: customer
+    description: "Share of unique customers who placed more than one order"
+    synonyms: ["repeat customer", "repeat customers", "returning customers", retention, "repeat purchase", loyalty]
+
+dimensions:
+  category:
+    sql: category
+    synonyms: [category, categories, "product category", "product categories", "product line"]
+  state:
+    sql: customer_state
+    synonyms: [state, states, region, regions, "customer state"]
+  seller_state:
+    sql: seller_state
+    synonyms: ["seller state", "seller region"]
+  month:
+    sql: "strftime(purchased_at, '%Y-%m')"
+    synonyms: [month, monthly, "by month", "per month", trend, "over time"]
+  quarter:
+    sql: "CAST(year(purchased_at) AS VARCHAR) || '-Q' || CAST(quarter(purchased_at) AS VARCHAR)"
+    synonyms: [quarter, quarterly, "by quarter"]
+  year:
+    sql: "CAST(year(purchased_at) AS VARCHAR)"
+    synonyms: [year, yearly, annual, "by year"]

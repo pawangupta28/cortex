@@ -1,0 +1,20 @@
+[project]
+name = "cortex-genai"
+version = "0.1.0"
+description = "Domain-agnostic enterprise GenAI platform: governed RAG, text-to-SQL, agents, evals"
+requires-python = ">=3.11"
+dependencies = [
+  "duckdb>=1.1", "fastapi>=0.110", "uvicorn>=0.29", "httpx>=0.27", "pydantic>=2.6", "sqlglot>=25",
+  "numpy>=1.26", "scikit-learn>=1.4", "pyyaml>=6", "mcp>=2.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5", "playwright>=1.44"]
+otel = ["opentelemetry-sdk>=1.25", "opentelemetry-exporter-otlp-proto-http>=1.25"]
+embeddings = ["sentence-transformers>=3"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 130
