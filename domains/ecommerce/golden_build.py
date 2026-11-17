@@ -8,10 +8,7 @@ id, so paraphrases of one template never straddle dev and holdout (no leakage).
 from __future__ import annotations
 
 import hashlib
-import json
 
-from cortex.config import ROOT
-from cortex.ingest.loader import connect
 
 MONTH_NAMES = ["January", "February", "March", "April", "May", "June"]
 CAT_WORDS = {"office_furniture": "office furniture", "auto": "auto parts", "health_beauty": "health and beauty",
@@ -31,8 +28,7 @@ def _split(template_id: str) -> str:
     return "dev" if h < 6 else "calib" if h < 8 else "holdout"
 
 
-def build() -> list[dict]:
-    con = connect()
+def build(con) -> list[dict]:
     one = lambda sql: con.execute(sql).fetchone()[0]          # noqa: E731
     items: list[dict] = []
 
@@ -128,19 +124,4 @@ def build() -> list[dict]:
                            "What is the weather in Sao Paulo today?", "How many employees does the company have?",
                            "What will revenue be in 2030?", "Who is the CEO of the store?"]):
         add(f"unanswerable_{i}", "unanswerable", [q], {"abstain": True})
-    con.close()
     return items
-
-
-def write(path=None) -> list[dict]:
-    items = build()
-    path = path or ROOT / "evals" / "golden_ecommerce.jsonl"
-    with open(path, "w", encoding="utf-8") as f:
-        for it in items:
-            f.write(json.dumps(it, default=float) + "\n")
-    return items
-
-
-def load(path=None) -> list[dict]:
-    path = path or ROOT / "evals" / "golden_ecommerce.jsonl"
-    return [json.loads(line) for line in open(path, encoding="utf-8")]

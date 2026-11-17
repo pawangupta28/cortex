@@ -1,0 +1,88 @@
+# Finance semantic layer over fin_view: one row per company per fiscal quarter, from SEC XBRL.
+# Ratios are ratio-of-sums, so a multi-quarter margin is weighted by revenue, not an average of ratios.
+base_view: fin_view
+
+time:
+  column: period_end
+  year_expr: cal_year
+  quarter_expr: cal_quarter           # calendar quarter, comparable across different fiscal years
+  month_expr: "strftime(period_end, '%Y-%m')"
+  recency: {column: period_rank, unit: quarter}   # "last 8 quarters", "latest quarter"
+  default_recent: 1                   # no period given -> latest reported quarter
+  label_expr: "MAX(fiscal_label || ', ended ' || CAST(period_end AS VARCHAR))"
+
+entities:
+  company: {column: ticker, glossary: companies}
+
+metrics:
+  revenue:
+    sql: "SUM(revenue)"
+    format: usd_compact
+    description: "Total net revenue (XBRL: RevenueFromContractWithCustomer / Revenues)"
+    synonyms: [revenue, revenues, sales, "net sales", "top line", turnover]
+  gross_profit:
+    sql: "SUM(gross_profit)"
+    format: usd_compact
+    description: "Revenue minus cost of revenue"
+    synonyms: ["gross profit"]
+  gross_margin:
+    sql: "ROUND(SUM(gross_profit) / NULLIF(SUM(revenue), 0), 4)"
+    format: percent
+    description: "Gross profit as a share of revenue"
+    synonyms: ["gross margin", "gross margins", "gm"]
+  operating_income:
+    sql: "SUM(operating_income)"
+    format: usd_compact
+    description: "Operating income (loss)"
+    synonyms: ["operating income", "operating profit", ebit]
+  operating_margin:
+    sql: "ROUND(SUM(operating_income) / NULLIF(SUM(revenue), 0), 4)"
+    format: percent
+    description: "Operating income as a share of revenue"
+    synonyms: ["operating margin", "operating margins", "ebit margin"]
+  net_income:
+    sql: "SUM(net_income)"
+    format: usd_compact
+    description: "Net income (loss)"
+    synonyms: ["net income", profit, profits, earnings, "bottom line"]
+  net_margin:
+    sql: "ROUND(SUM(net_income) / NULLIF(SUM(revenue), 0), 4)"
+    format: percent
+    description: "Net income as a share of revenue"
+    synonyms: ["net margin", "profit margin", "net profit margin"]
+  rd_expense:
+    label: "R&D expense"
+    sql: "SUM(rd_expense)"
+    format: usd_compact
+    description: "Research and development expense"
+    synonyms: ["r&d", "r&d spend", "research and development", "r&d expense"]
+  rd_intensity:
+    label: "R&D intensity"
+    sql: "ROUND(SUM(rd_expense) / NULLIF(SUM(revenue), 0), 4)"
+    format: percent
+    description: "R&D expense as a share of revenue"
+    synonyms: ["r&d intensity", "r&d as a share of revenue", "r&d as a percentage of revenue", "r&d ratio"]
+  revenue_growth_yoy:
+    label: "Year-over-year revenue growth"
+    sql: "ROUND(AVG(revenue_yoy), 4)"
+    format: percent
+    description: "Revenue growth versus the same quarter a year earlier"
+    synonyms: ["revenue growth", "yoy growth", "year over year growth", "year-over-year growth", "grew revenue",
+               "growth", "grew fastest", "fastest growing"]
+  eps_diluted:
+    label: "Diluted EPS"
+    sql: "SUM(eps_diluted)"
+    format: usd
+    description: "Diluted earnings per share (not available for derived fiscal Q4s)"
+    synonyms: [eps, "earnings per share", "diluted eps"]
+
+dimensions:
+  company:
+    sql: ticker
+    synonyms: [company, companies, firm, firms, ticker, tickers]
+  quarter:
+    sql: cal_quarter
+    synonyms: [quarter, quarters, quarterly]
+  year:
+    sql: "CAST(cal_year AS VARCHAR)"
+    synonyms: [year, yearly, annual, "by year"]

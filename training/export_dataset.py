@@ -8,7 +8,7 @@ model: distillation). Review a sample by hand before training, and keep 15% held
 import json
 import sys
 
-from cortex.evals.golden import load
+from cortex.evals.harness import load_golden as load
 from cortex.gateway.gateway import Gateway
 from cortex.retrieval.planner import Planner
 

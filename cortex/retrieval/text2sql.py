@@ -97,13 +97,13 @@ class Text2SQL:
         except (ValueError, KeyError, TypeError):
             return offline
 
-    def run(self, question: str, allowed_states="*") -> SQLResult | None:
+    def run(self, question: str, allowed_scope="*") -> SQLResult | None:
         with span("retrieval.text2sql") as sp:
             spec = self.spec_for(question)
             if spec is not None:
                 sql = self.layer.compile(spec)
                 try:
-                    g = guard(sql, allowed_states, settings.sql_row_limit)
+                    g = guard(sql, allowed_scope, settings.sql_row_limit)
                     cols, rows = execute(g.sql)
                     sp["attributes"].update({"cortex.sql.path": "semantic_layer", "cortex.sql.rows": len(rows)})
                     return SQLResult(sql=sql, columns=cols, rows=rows, spec=spec.to_dict(),
@@ -112,9 +112,9 @@ class Text2SQL:
                     return SQLResult(sql=sql, columns=[], rows=[], spec=spec.to_dict(), error=str(e))
             if not self.gw.online:
                 return None
-            return self._raw(question, allowed_states)
+            return self._raw(question, allowed_scope)
 
-    def _raw(self, question: str, allowed_states) -> SQLResult:
+    def _raw(self, question: str, allowed_scope) -> SQLResult:
         messages = [{"role": "system", "content": RAW_SQL_PROMPT.format(schema=_schema_text(), limit=settings.sql_row_limit)},
                     {"role": "user", "content": question}]
         last_err, sql = None, ""
@@ -122,7 +122,7 @@ class Text2SQL:
             res = self.gw.complete("sql", messages, json_mode=True, offline=lambda: '{"sql": ""}')
             sql = (parse_json(res.text) or {}).get("sql", "")
             try:
-                g = guard(sql, allowed_states, settings.sql_row_limit)
+                g = guard(sql, allowed_scope, settings.sql_row_limit)
                 cols, rows = execute(g.sql)
                 self.gw.feedback(res, 1.0)
                 return SQLResult(sql=sql, columns=cols, rows=rows, path="raw_llm", rls_applied=g.rls_applied,

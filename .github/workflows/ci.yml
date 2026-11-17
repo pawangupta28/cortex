@@ -13,8 +13,8 @@ jobs:
       - name: Unit and integration tests (offline, deterministic)
         run: python -m pytest -q
       - name: Build data and indexes
-        run: python -m cortex.cli init --synthetic
+        run: python -m cortex.cli --domain ecommerce init --synthetic
       - name: Eval gate (accuracy, red team, row-level security)
-        run: python -m cortex.cli eval --gate
+        run: python -m cortex.cli --domain ecommerce eval --gate
       - uses: actions/upload-artifact@v4
-        with: { name: eval-report, path: evals/REPORT.md }
+        with: { name: eval-report, path: evals/ecommerce/REPORT.md }

@@ -33,8 +33,22 @@ def _stem(t: str) -> str:
     return t
 
 
-def tokenize(text: str) -> list[str]:
-    return [_stem(t) for t in TOKEN.findall(text.lower()) if t not in STOP]
+def _stem_more(t: str) -> str:
+    """Retrieval-only suffix folding (manufacturing / manufacture / manufactured -> manufactur).
+    Display code (themes) uses plural folding only, so extracted terms stay readable."""
+    t = _stem(t)
+    for suf, min_len in (("ing", 6), ("ed", 5), ("e", 5)):
+        if len(t) > min_len and t.endswith(suf):
+            return t[: -len(suf)]
+    return t
+
+
+FULL_STEM = False   # suffix folding measured worse on both golden sets (see ADR-004); kept for experiments
+
+
+def tokenize(text: str, light: bool = False) -> list[str]:
+    stem = _stem if (light or not FULL_STEM) else _stem_more
+    return [stem(t) for t in TOKEN.findall(text.lower()) if t not in STOP]
 
 
 # ---------------------------------------------------------------- BM25

@@ -10,19 +10,25 @@ import re
 
 from cortex.core.models import Claim, Evidence
 
-NUM = re.compile(r"(?<![\w.])[-+]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|(?<![\w.])[-+]?\d+(?:\.\d+)?")
+NUM = re.compile(r"(?<![\w.])([-+]?\$?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)"
+                 r"(?:\s*(trillion|billion|million|thousand|tn|bn|mn|[TBMK])(?![\w]))?")
+SCALE = {"t": 1e12, "trillion": 1e12, "tn": 1e12, "b": 1e9, "billion": 1e9, "bn": 1e9,
+         "m": 1e6, "million": 1e6, "mn": 1e6, "k": 1e3, "thousand": 1e3}
 SENT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\[])|\n+")
 
 
 def _numbers(text: str) -> list[float]:
     text = re.sub(r"\[E\d+\]", " ", text)            # citation markers are not claims
-    text = re.sub(r"\b\d{4}-\d{2}\b|\b\d{4}-Q\d\b", " ", text)  # period labels
+    # labels, not quantities: dates, periods, form names, item numbers
+    text = re.sub(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{4}-\d{2}\b|\b\d{4}-Q\d\b|\bFY\d{4}\b|\bQ[1-4]\b|\b10-[KQ]\b|"
+                  r"\bItem \d+[A-Ca-c]?\b", " ", text)
     out = []
-    for m in NUM.findall(text):
+    for num, suffix in NUM.findall(text):
         try:
-            out.append(float(m.replace(",", "")))
+            v = float(num.replace(",", "").replace("$", ""))
         except ValueError:
-            pass
+            continue
+        out.append(v * SCALE[suffix.lower()] if suffix else v)
     return out
 
 

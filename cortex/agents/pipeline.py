@@ -13,6 +13,7 @@ from cortex.agents.verifier import verify
 from cortex.config import settings
 from cortex.context.builder import ContextBuilder
 from cortex.core.models import Answer, ContextItem, Evidence, Intent
+from cortex.domain import get_domain
 from cortex.gateway.cache import SemanticCache
 from cortex.gateway.gateway import Gateway
 from cortex.retrieval.index import Corpus, build_index, tokenize, to_evidence
@@ -23,7 +24,7 @@ from cortex.security.guards import PolicyEngine, injection_score, redact_pii, sp
 from cortex.telemetry.tracer import current_trace_id, span
 from cortex.uncertainty.conformal import ConfidenceModel
 
-SYSTEM_RULES = """You are Cortex, an analytics assistant for an e-commerce company.
+SYSTEM_RULES = """You are Cortex, an analytics assistant. Domain: {domain}.
 Rules:
 1. Use only the EVIDENCE below. Cite evidence as [E1], [E2] after each claim.
 2. Every number you write must appear in the evidence (you may show a ratio as a percentage). Never compute new numbers.
@@ -32,11 +33,19 @@ Rules:
 5. Be concise: 2-5 sentences."""
 
 
-def _fmt(metric: str | None, v) -> str:
+def _fmt(fmt: str, v) -> str:
     if v is None:
         return "n/a"
-    if metric and (metric.endswith("_rate") or metric.endswith("_share")):
+    if fmt == "percent":
         return f"{float(v) * 100:.1f}%"
+    if fmt == "usd_compact":
+        x = float(v)
+        for div, suf in ((1e12, "T"), (1e9, "B"), (1e6, "M")):
+            if abs(x) >= div:
+                return f"${x / div:,.2f}{suf}"
+        return f"${x:,.0f}"
+    if fmt == "usd":
+        return f"${float(v):,.2f}"
     if isinstance(v, float) and v.is_integer() and abs(v) >= 10:
         return f"{int(v):,}"
     if isinstance(v, float):
@@ -44,24 +53,24 @@ def _fmt(metric: str | None, v) -> str:
     return f"{v:,}" if isinstance(v, int) else str(v)
 
 
-def _label(metric: str) -> str:
-    return metric.replace("_", " ").replace("avg", "average").capitalize()
-
-
-def _filter_desc(f: dict) -> str:
+def _filter_desc(f: dict, time_dim: bool = False) -> str:
     parts = []
-    if f.get("category"):
-        parts.append("for " + (", ".join(f["category"]) if isinstance(f["category"], list) else f["category"]))
-    if f.get("state"):
-        parts.append("in " + (", ".join(f["state"]) if isinstance(f["state"], list) else f["state"]))
+    for k, v in f.items():
+        if k in ("year", "quarter", "month", "recent", "reviews", "unavailable") or v in (None, "", []):
+            continue
+        parts.append(("for " if not parts else "and ") + (", ".join(map(str, v)) if isinstance(v, list) else str(v)))
     for k in ("year", "quarter", "month"):
         if f.get(k):
             parts.append(f"during {f[k]}")
+    if f.get("recent") and not time_dim:
+        parts.append("in the latest reported quarter" if int(f["recent"]) == 1 else f"over the last {f['recent']} quarters")
     return (" " + " ".join(parts)) if parts else ""
 
 
 def _best_sentences(text: str, query: str, n: int = 2) -> str:
-    sents = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+    # prose sentences only: table rows ("| 96,221 | $ |") read badly and are covered by SQL evidence
+    sents = [s.strip() for s in re.split(r"(?<=[.!?])\s+|\n{2,}", text)
+             if s.strip() and s.count("|") <= 1 and len(re.findall(r"[A-Za-z]{3,}", s)) >= 5]
     q = set(tokenize(query))
     ranked = sorted(sents, key=lambda s: -len(q & set(tokenize(s))))
     keep = set(ranked[:n])
@@ -75,8 +84,12 @@ class Cortex:
             self.corpus = corpus or Corpus.load()
         except FileNotFoundError:
             self.corpus = build_index()
+        self.domain = get_domain()
         self.layer = SemanticLayer()
         self.planner = Planner(self.gw, self.layer)
+        cols = self.domain.collections
+        self.reference = [n for n, c in cols.items() if c.get("role") == "reference" and n in self.corpus.collections]
+        self.opinion = [n for n, c in cols.items() if c.get("role") == "opinion" and n in self.corpus.collections]
         self.t2s = Text2SQL(self.gw, self.layer)
         self.policy = PolicyEngine()
         self.ctx = ContextBuilder(settings.context_budget_tokens)
@@ -91,7 +104,8 @@ class Cortex:
     def ask(self, question: str, role: str = "analyst", use_cache: bool = True, defences: bool = True) -> Answer:
         t0 = time.time()
         with span("cortex.ask", **{"cortex.role": role}) as root:
-            allowed_states = self.policy.allowed_states(role)
+            settings.artifacts_dir.mkdir(parents=True, exist_ok=True)
+            allowed_scope = self.policy.allowed_scope(role)
             if defences:
                 v = injection_score(question)
                 if v.blocked:
@@ -114,9 +128,15 @@ class Cortex:
             with span("cortex.plan") as sp:
                 plan = self.planner.plan(question)
                 if plan.intent == Intent.UNSUPPORTED:
-                    # lexical probe: a question that strongly matches the policy corpus is a docs question
-                    probe = self.corpus["policy"].search(question, k=1, mode="bm25", diversify=False)
-                    if probe and probe[0].score >= 4.0:
+                    # lexical probe: a question whose content words (>= 75%) occur in one reference passage
+                    # is a docs question the cue list missed ("What does the bulletin say about carriers?")
+                    terms = set(tokenize(question))
+                    probe = (self.corpus[self.reference[0]].search(question, k=1, mode="bm25", diversify=False)
+                             if self.reference and len(terms) >= 2
+                             and not (plan.filters.get("unavailable") or plan.filters.get("forecast")) else [])
+                    covered = (len(terms & set(tokenize(probe[0].chunk.section_path + " " + probe[0].chunk.text))) / len(terms)
+                               if probe else 0.0)
+                    if probe and probe[0].score >= 4.0 and covered >= 0.75:
                         plan = plan.model_copy(update={"intent": Intent.DOCS, "confidence": 0.6})
                 sp["attributes"].update({"cortex.intent": plan.intent.value, "cortex.plan_conf": plan.confidence})
 
@@ -126,7 +146,7 @@ class Cortex:
 
             if plan.intent in (Intent.METRIC, Intent.HYBRID):
                 self.policy.check(agent="researcher", tool="run_sql", role=role, args={"q": question})
-                sql_res = self.t2s.run(question, allowed_states)
+                sql_res = self.t2s.run(question, allowed_scope)
                 if sql_res is not None and sql_res.ok and all(v is None for r in sql_res.rows for v in r):
                     sql_res.rows = []             # an aggregate over zero rows is "no data", not a value
                 if sql_res is not None:
@@ -137,15 +157,21 @@ class Cortex:
                         table = "\n".join([" | ".join(sql_res.columns)] +
                                           [" | ".join(str(c) for c in r) for r in sql_res.rows[:25]])
                         evidence.append(Evidence(id="sql:result", kind="sql_result", content=table, score=1.0,
-                                                 source="warehouse:order_facts",
+                                                 source=f"warehouse:{self.layer.base}",
                                                  data={"columns": sql_res.columns, "rows": [list(r) for r in sql_res.rows[:50]],
                                                        "sql": sql_res.sql}))
                         self.policy.check(agent="analyst", tool="compute", role=role)
-                        evidence += derive_facts(sql_res.columns, sql_res.rows, metric)
+                        if "period" in sql_res.columns:      # the period label is context, not a measure
+                            i = sql_res.columns.index("period")
+                            dcols = [c for j, c in enumerate(sql_res.columns) if j != i]
+                            drows = [tuple(v for j, v in enumerate(r) if j != i) for r in sql_res.rows]
+                        else:
+                            dcols, drows = sql_res.columns, sql_res.rows
+                        evidence += derive_facts(dcols, drows, metric)
 
             if plan.intent in (Intent.DOCS, Intent.HYBRID):
                 self.policy.check(agent="researcher", tool="search_docs", role=role, args={"q": question})
-                ev_docs, quarantined, doc_score = self._docs(question, plan.filters, allowed_states, defences)
+                ev_docs, quarantined, doc_score = self._docs(question, plan.filters, allowed_scope, defences)
                 evidence += ev_docs
                 signals["doc_score"] = doc_score
             signals["quarantined"] = float(quarantined)
@@ -153,7 +179,7 @@ class Cortex:
 
             # ---------------------------------------------------------- write
             labelled = {f"E{i}": e for i, e in enumerate(evidence, start=1)}
-            items = [ContextItem(slot="system", content=SYSTEM_RULES, fixed=True, ref="rules")]
+            items = [ContextItem(slot="system", content=SYSTEM_RULES.format(domain=self.domain.title), fixed=True, ref="rules")]
             for lab, e in labelled.items():
                 body = spotlight(e.content, e.source) if e.kind == "chunk" else e.content
                 items.append(ContextItem(slot="evidence" if e.kind != "computed" else "tool_result",
@@ -185,7 +211,9 @@ class Cortex:
 
             score = self.conf.score(signals)
             abstained, reason = False, None
-            if plan.intent == Intent.UNSUPPORTED:
+            if plan.filters.get("unavailable"):
+                abstained, reason = True, f"{', '.join(plan.filters['unavailable'])} is not in this dataset"
+            elif plan.intent == Intent.UNSUPPORTED:
                 abstained, reason = True, "outside the data this system covers"
             elif not evidence:
                 abstained, reason = True, "no evidence found"
@@ -195,8 +223,7 @@ class Cortex:
                 abstained, reason = True, f"confidence {score:.2f} below the calibrated threshold"
             if abstained:
                 found = f" I found {len(evidence)} pieces of related evidence, but not enough to answer reliably." if evidence else ""
-                text = (f"I can't answer this reliably ({reason}).{found} Try asking about orders, revenue, "
-                        "deliveries, reviews or store policies.")
+                text = f"I can't answer this reliably ({reason}).{found} {self.domain.fallback_message}"
 
             text, pii = redact_pii(text, keep=("phone",))
             root["attributes"].update({"cortex.confidence": round(score, 3), "cortex.abstained": abstained,
@@ -218,60 +245,105 @@ class Cortex:
         spec = self.layer.parse(question)
         if spec and self.planner.rule_plan(question).intent == Intent.METRIC:
             return json.dumps(spec.to_dict(), sort_keys=True)
-        tmp = self.layer.parse(question + " revenue")
-        ents = {k: tmp.filters[k] for k in ("category", "state") if tmp and k in tmp.filters}
+        ents = self.layer.find_entities(question)
         return "lit:" + self.cache.signature(question) + "|" + json.dumps(ents, sort_keys=True)
 
     # ================================================================== docs
-    def _docs(self, question: str, filters: dict, allowed_states, defences: bool):
+    def _docs(self, question: str, filters: dict, allowed_scope, defences: bool):
         out: list[Evidence] = []
         quarantined = 0
-        policy_hits = self.corpus["policy"].search(question, k=3, weights=self.doc_weights)
-        want_reviews = filters.get("reviews")
-        review_hits = []
-        if want_reviews:
-            cat, st = filters.get("category"), filters.get("state")
-            low = bool(re.search(r"\b(why|complain\w*|unhappy|bad|low|problem|issue|1-star|one star|negative|worst)\b",
-                                 question.lower()))
+        cols = self.domain.collections
+
+        def make_where(cfg: dict, extra=None):
+            fmap, scope_field = cfg.get("filters", {}), cfg.get("scope_field")
 
             def where(m):
-                if m.get("type") != "review":
+                if scope_field and allowed_scope != "*" and m.get(scope_field) not in allowed_scope:
                     return False
-                if allowed_states != "*" and m.get("state") not in allowed_states:
+                for fkey, mkey in fmap.items():
+                    want = filters.get(fkey)
+                    if want and m.get(mkey) not in (want if isinstance(want, list) else [want]):
+                        return False
+                return extra(m) if extra else True
+            return where
+
+        ref_hits = []
+        ql = question.lower()
+        for name in self.reference:
+            cfg = cols[name]
+            k = cfg.get("k", 3)
+            hint = next((h for h in cfg.get("section_hints", []) if re.search(r"\b(" + h["pattern"] + r")\b", ql)), None)
+            ex = cfg.get("exclude_unless")
+            excl = ex if ex and not re.search(r"\b(" + ex["pattern"] + r")\b", ql) else None
+            # one search per requested entity value, so "compare A and B" retrieves evidence for both
+            split = next(((fk, filters[fk]) for fk in cfg.get("filters", {}) if isinstance(filters.get(fk), list)), None)
+            base_where = make_where(cfg)                # enforces scope + all other filters
+
+            def section_ok(m, hint=hint, excl=excl):
+                if excl and m.get(excl["field"]) == excl["value"]:
                     return False
-                if cat and m.get("category") not in (cat if isinstance(cat, list) else [cat]):
-                    return False
-                if st and m.get("state") not in (st if isinstance(st, list) else [st]):
-                    return False
-                return (m.get("score", 5) <= 2) if low else True
-            reviews = self.corpus["review"]
-            seen_txt: set[str] = set()
-            review_hits = []
-            for h in reviews.search(question, k=20, where=where):   # de-duplicate identical review texts
-                key = h.chunk.text.strip().lower()
-                if key not in seen_txt:
-                    seen_txt.add(key)
-                    review_hits.append(h)
-            review_hits = review_hits[:3]
-            target = [c.text for c in reviews.chunks if where(c.metadata)]
-            background = [c.text for c in reviews.chunks if not where(c.metadata)
-                          and (allowed_states == "*" or c.metadata.get("state") in allowed_states)]
-            if len(target) >= 10:
-                terms = distinctive_terms(target, background)
-                if terms:
-                    out.append(Evidence(id="calc:themes", kind="computed",
-                                        content=f"Distinctive terms in {len(target)} matching reviews vs {len(background)} others "
-                                                "(weighted log-odds z-score): " + ", ".join(f"'{w}' (z={z}, n={n})" for w, z, n in terms),
-                                        data={"n_target": len(target), "terms": [t[0] for t in terms]}))
-        hits = policy_hits + review_hits
+                return not hint or hint["contains"] in str(m.get(hint["field"], ""))
+
+            def run(where):
+                return self.corpus[name].search(question, k=k, weights=self.doc_weights, where=where)
+            if split:
+                fk, vals = split
+                mkey = cfg["filters"][fk]
+                for v in vals:
+                    got = self.corpus[name].search(question, k=max(2, k // len(vals) + 1), weights=self.doc_weights,
+                                                   where=lambda m, v=v: base_where(m) and m.get(mkey) == v and section_ok(m))
+                    if not got and hint:                # section hint found nothing: widen to all sections
+                        got = self.corpus[name].search(question, k=max(2, k // len(vals) + 1), weights=self.doc_weights,
+                                                       where=lambda m, v=v: base_where(m) and m.get(mkey) == v
+                                                       and section_ok(m, hint=None))
+                    ref_hits += got
+            else:
+                got = run(lambda m: base_where(m) and section_ok(m))
+                if not got and hint:
+                    got = run(lambda m: base_where(m) and section_ok(m, hint=None))
+                ref_hits += got
+
+        op_hits = []
+        if filters.get("reviews"):
+            for name in self.opinion:
+                cfg = cols[name]
+                low_cfg = cfg.get("low_score")
+                low = bool(low_cfg) and bool(re.search(
+                    r"\b(why|complain\w*|unhappy|bad|low|problem|issue|1-star|one star|negative|worst)\b", question.lower()))
+                where = make_where(cfg, (lambda m: m.get(low_cfg["field"], 99) <= low_cfg["max"]) if low else None)
+                coll = self.corpus[name]
+                seen_txt: set[str] = set()
+                for h in coll.search(question, k=20, where=where):     # de-duplicate identical texts
+                    key = h.chunk.text.strip().lower()
+                    if key not in seen_txt:
+                        seen_txt.add(key)
+                        op_hits.append(h)
+                op_hits = op_hits[: cfg.get("k", 3)]
+                scope_field = cfg.get("scope_field")
+                target = [c.text for c in coll.chunks if where(c.metadata)]
+                background = [c.text for c in coll.chunks if not where(c.metadata)
+                              and (allowed_scope == "*" or not scope_field or c.metadata.get(scope_field) in allowed_scope)]
+                if len(target) >= 10:
+                    terms = distinctive_terms(target, background)
+                    if terms:
+                        out.append(Evidence(id="calc:themes", kind="computed",
+                                            content=f"Distinctive terms in {len(target)} matching {name}s vs {len(background)} others "
+                                                    "(weighted log-odds z-score): " + ", ".join(f"'{w}' (z={z}, n={n})" for w, z, n in terms),
+                                            data={"n_target": len(target), "terms": [t[0] for t in terms], "collection": name}))
+        hits = ref_hits + op_hits
         top = max((h.score for h in hits), default=0.0)
+        seen_ids: set[str] = set()
         for e in to_evidence(hits):
+            if e.id in seen_ids:
+                continue
+            seen_ids.add(e.id)
             if defences:
                 v = injection_score(e.content)
                 if v.blocked:
                     quarantined += 1
                     self.policy._audit({"event": "quarantine", "evidence": e.id, "score": v.score})
                     continue
+            e.data["role"] = "opinion" if any(h.chunk.id == e.id[4:] for h in op_hits) else "reference"
             out.append(e)
         # RRF scores are small (max sum(w)/61); normalise to [0,1] for the confidence model
         doc_score = min(1.0, top / (sum(self.doc_weights) / 61)) if hits else 0.0
@@ -284,46 +356,72 @@ class Cortex:
         lab = {e.id: k for k, e in labelled.items()}
         parts: list[str] = []
         spec = (sql_res.spec or {}) if sql_res else {}
-        fdesc = _filter_desc(spec.get("filters", {}))
+        fmt = self.layer.metric_format(metric)
         if sql_res is not None and sql_res.ok and sql_res.rows:
-            cols, rows = sql_res.columns, sql_res.rows
+            cols, rows = list(sql_res.columns), [list(r) for r in sql_res.rows]
+            period = None
+            if "period" in cols:                      # strip the period label column
+                i = cols.index("period")
+                period = sorted({str(r[i]) for r in rows if r[i] is not None})
+                cols.pop(i)
+                for r in rows:
+                    r.pop(i)
+            time_dim = cols[0] in ("month", "quarter", "year") if len(cols) > 1 else False
+            fdesc = _filter_desc(spec.get("filters", {}), time_dim)
             m = metric or cols[-1]
-            if len(cols) == 1:
-                parts.append(f"{_label(m)}{fdesc} is {_fmt(m, rows[0][0])} [{lab['sql:result']}].")
-            elif cols[0] in ("month", "quarter", "year") and "calc:trend" in lab:
+            when = f" ({period[0]})" if period and len(period) == 1 else ""
+            label = self.layer.metric_label(m)
+            lower = label if label[:2].isupper() else label[:1].lower() + label[1:]
+            series = [k for k in lab if k.startswith("calc:trend:")]
+            if len(cols) == 3 and series:
+                for k in series:
+                    d = labelled[lab[k]].data
+                    chg = (f"{(d['last'] - d['first']) * 100:+.1f} points" if fmt == "percent"
+                           else f"{d['pct_change']:+.1f}%" if d.get("pct_change") is not None else "")
+                    parts.append(f"{d['group']}: {lower} went from {_fmt(fmt, d['first'])} in {d['first_label']} to "
+                                 f"{_fmt(fmt, d['last'])} in {d['last_label']} ({chg}) [{lab[k]}].")
+            elif len(cols) == 1:
+                parts.append(f"{label}{fdesc}{when} is {_fmt(fmt, rows[0][0])} [{lab['sql:result']}].")
+            elif time_dim and "calc:trend" in lab:
                 d = labelled[lab["calc:trend"]].data
-                pct = f" ({d['pct_change']:+.1f}%)" if d.get("pct_change") is not None else ""
-                parts.append(f"{_label(m)}{fdesc} went from {_fmt(m, d['first'])} in {rows[0][0]} to "
-                             f"{_fmt(m, d['last'])} in {rows[-1][0]}{pct} [{lab['calc:trend']}]. "
-                             f"The peak was {_fmt(m, d['peak'])} in {d['peak_label']} [{lab['sql:result']}].")
+                pct = f" ({d['pct_change']:+.1f}% change)" if d.get("pct_change") is not None and fmt != "percent" else ""
+                pts = f" ({(d['last'] - d['first']) * 100:+.1f} points)" if fmt == "percent" else ""
+                parts.append(f"{label}{fdesc} went from {_fmt(fmt, d['first'])} in {rows[0][0]} to "
+                             f"{_fmt(fmt, d['last'])} in {rows[-1][0]}{pct}{pts} [{lab['calc:trend']}]. "
+                             f"The peak was {_fmt(fmt, d['peak'])} in {d['peak_label']} [{lab['sql:result']}].")
             elif "calc:spread" in lab:
                 d = labelled[lab["calc:spread"]].data
                 order = spec.get("order") or "desc"
-                head = rows[: min(3, len(rows))]
-                listing = ", ".join(f"{r[0]} ({_fmt(m, r[-1])})" for r in head)
-                if order == "asc":
-                    parts.append(f"Lowest {_label(m).lower()}{fdesc} by {cols[0]}: {listing} [{lab['sql:result']}].")
-                else:
-                    parts.append(f"Highest {_label(m).lower()}{fdesc} by {cols[0]}: {listing} [{lab['sql:result']}].")
-                if d.get("groups", 0) > 1 and not spec.get("limit"):
-                    parts.append(f"Across {d['groups']} groups the range is {_fmt(m, d['bottom'])} "
-                                 f"({d['bottom_label']}) to {_fmt(m, d['top'])} ({d['top_label']}) [{lab['calc:spread']}].")
+                head = rows[: min(5 if len(rows) <= 5 else 3, len(rows))]
+                listing = ", ".join(f"{r[0]} ({_fmt(fmt, r[-1])})" for r in head)
+                word = "Lowest" if order == "asc" else "Highest"
+                parts.append(f"{word} {lower}{fdesc} by {cols[0]}: {listing} [{lab['sql:result']}].")
+                if d.get("groups", 0) > 5 and not spec.get("limit"):
+                    parts.append(f"Across {d['groups']} groups the range is {_fmt(fmt, d['bottom'])} "
+                                 f"({d['bottom_label']}) to {_fmt(fmt, d['top'])} ({d['top_label']}) [{lab['calc:spread']}].")
         elif sql_res is not None and sql_res.ok:
-            parts.append(f"The query returned no rows for{fdesc or ' this question'} [{lab.get('sql:result', 'E1')}].")
+            parts.append(f"The query returned no rows for{_filter_desc(spec.get('filters', {})) or ' this question'} "
+                         f"[{lab.get('sql:result', 'E1')}].")
         if "calc:themes" in lab:
             d = labelled[lab["calc:themes"]].data
             terms = ", ".join(f"'{t}'" for t in d["terms"][:4])
-            parts.append(f"In the {d['n_target']} matching reviews, the most distinctive themes are {terms} [{lab['calc:themes']}].")
+            coll = d.get("collection", "text")
+            parts.append(f"In the {d['n_target']} matching {coll if coll.endswith('s') else coll + 's'}, the most distinctive themes "
+                         f"are {terms} [{lab['calc:themes']}].")
         chunks = [(k, e) for k, e in labelled.items() if e.kind == "chunk"]
-        policies = [(k, e) for k, e in chunks if e.data.get("metadata", {}).get("type") == "policy"]
-        reviews = [(k, e) for k, e in chunks if e.data.get("metadata", {}).get("type") == "review"]
-        if intent == Intent.DOCS or (intent == Intent.HYBRID and not parts):
-            top = policies[0][1].score if policies else 0
-            for k, e in [p for p in policies if p[1].score >= 0.75 * top][:2]:
-                parts.append(f"{_best_sentences(e.content, question, n=3)} [{k}]")
-        if reviews and (intent == Intent.HYBRID or "calc:themes" in lab):
-            k, e = reviews[0]
+        refs = [(k, e) for k, e in chunks if e.data.get("role") == "reference"]
+        opinions = [(k, e) for k, e in chunks if e.data.get("role") == "opinion"]
+        if intent == Intent.DOCS or (intent == Intent.HYBRID and (not parts or not opinions)):
+            top = refs[0][1].score if refs else 0
+            for k, e in [p for p in refs if p[1].score >= 0.75 * top][:2]:
+                sent = _best_sentences(e.content, question, n=3 if intent == Intent.DOCS else 2)
+                if not sent:
+                    continue
+                src = e.source.split("#")[-1].split(" > ")[0] if intent == Intent.HYBRID else ""
+                parts.append((f"{src}: " if src else "") + f"{sent} [{k}]")
+        if opinions and (intent == Intent.HYBRID or "calc:themes" in lab):
+            k, e = opinions[0]
             parts.append(f'For example, one customer wrote: "{e.content}" [{k}]')
         if intent == Intent.UNSUPPORTED or not parts:
-            return "I could not find evidence for this in the store's data."
+            return "I could not find evidence for this in the data."
         return " ".join(parts)

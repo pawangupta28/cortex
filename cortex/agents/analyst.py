@@ -35,6 +35,22 @@ def derive_facts(columns: list[str], rows: list[tuple], metric: str | None) -> l
         out.append(Evidence(id="calc:value", kind="computed", content=f"{metric or columns[0]} = {rows[0][0]}",
                             data={"value": _num(rows[0][0])}))
         return out
+    if len(columns) == 3 and columns[1] in ("month", "quarter", "year"):
+        # one series per group (e.g. company x quarter): a trend fact for each group
+        groups: dict[str, list[tuple[str, float]]] = {}
+        for r in rows:
+            if _num(r[2]) is not None:
+                groups.setdefault(str(r[0]), []).append((str(r[1]), _num(r[2])))
+        for g, pts in groups.items():
+            if len(pts) >= 2:
+                (l0, v0), (l1, v1) = pts[0], pts[-1]
+                pct = ((v1 - v0) / v0 * 100) if v0 else None
+                out.append(Evidence(id=f"calc:trend:{g}", kind="computed",
+                                    content=f"{g}: {columns[-1]} went from {v0} ({l0}) to {v1} ({l1}); change {v1 - v0:+.4g}"
+                                            + (f" ({pct:+.1f}%)" if pct is not None else ""),
+                                    data={"group": g, "first": v0, "last": v1, "first_label": l0, "last_label": l1,
+                                          "change": round(v1 - v0, 4), "pct_change": round(pct, 1) if pct is not None else None}))
+        return out
     if len(columns) >= 2:
         label_idx, val_idx = 0, len(columns) - 1
         vals = [(str(r[label_idx]), _num(r[val_idx])) for r in rows if _num(r[val_idx]) is not None]
@@ -72,7 +88,7 @@ def distinctive_terms(target: list[str], background: list[str], k: int = 6, prio
     def grams(texts):
         c = Counter()
         for t in texts:
-            toks = [w for w in tokenize(t) if w not in STOP_EXTRA and len(w) > 2]
+            toks = [w for w in tokenize(t, light=True) if w not in STOP_EXTRA and len(w) > 2]
             c.update(toks)
             c.update(f"{a} {b}" for a, b in zip(toks, toks[1:]))
         return c

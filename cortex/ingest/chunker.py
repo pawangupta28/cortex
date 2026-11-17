@@ -14,8 +14,9 @@ from cortex.core.models import Chunk
 HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 
 
-def _cid(doc_id: str, path: str, i: int) -> str:
-    return hashlib.sha1(f"{doc_id}|{path}|{i}".encode()).hexdigest()[:16]
+def _cid(doc_id: str, path: str, i: int, seq: int) -> str:
+    # seq makes ids unique when a heading repeats inside one document (common in filings)
+    return hashlib.sha1(f"{doc_id}|{path}|{i}|{seq}".encode()).hexdigest()[:16]
 
 
 def chunk_markdown(doc_id: str, text: str, max_words: int = 120, metadata: dict | None = None) -> list[Chunk]:
@@ -48,13 +49,13 @@ def chunk_markdown(doc_id: str, text: str, max_words: int = 120, metadata: dict 
         for p in paragraphs:
             n = len(p.split())
             if cur and words + n > max_words:
-                chunks.append(Chunk(id=_cid(doc_id, section_path, part), doc_id=doc_id, text="\n\n".join(cur),
+                chunks.append(Chunk(id=_cid(doc_id, section_path, part, len(chunks)), doc_id=doc_id, text="\n\n".join(cur),
                                     section_path=section_path, metadata=metadata))
                 part += 1
                 cur, words = [], 0
             cur.append(p)
             words += n
         if cur:
-            chunks.append(Chunk(id=_cid(doc_id, section_path, part), doc_id=doc_id, text="\n\n".join(cur),
+            chunks.append(Chunk(id=_cid(doc_id, section_path, part, len(chunks)), doc_id=doc_id, text="\n\n".join(cur),
                                 section_path=section_path, metadata=metadata))
     return chunks

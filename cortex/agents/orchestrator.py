@@ -92,30 +92,22 @@ class Orchestrator:
 
     # ------------------------------------------------------------- planning
     def _decompose(self, goal: str) -> list[str]:
-        layer = self.cx.layer
-        spec = layer.parse(goal + " revenue")
-        f = spec.filters if spec else {}
-        cat = f.get("category")
-        cat = cat[0] if isinstance(cat, list) else cat
-        st = f.get("state")
-        st = st[0] if isinstance(st, list) else st
-        where = (f" for {cat.replace('_', ' ')}" if cat else "") + (f" in {st}" if st else "")
-        if cat:
-            offline = [f"Quarterly revenue{where}", f"Late delivery rate{where} by quarter",
-                       f"Average review score{where} by quarter",
-                       f"Why do customers complain about {cat.replace('_', ' ')}?",
-                       f"What are the operating notes and packaging rules for {cat.replace('_', ' ')}?"]
+        inv = self.cx.domain.investigation
+        ent = inv.get("entity")
+        found = self.cx.layer.find_entities(goal).get(ent, []) if ent else []
+        if found:
+            value = found[0]
+            gloss = self.cx.layer.glossary[self.cx.layer.entities[ent]["glossary"]]
+            name = (gloss.get(value) or [value])[0]
+            offline = [t.format(name=name, value=value) for t in inv.get("with_entity", [])]
         else:
-            offline = [f"Which product categories have the highest late delivery rate{where}?",
-                       f"Which categories have the lowest average review score{where}?",
-                       f"Quarterly revenue{where}", "Why do customers leave 1-star reviews?",
-                       "What compensation do customers get for late orders?"]
+            offline = list(inv.get("default", [goal]))
         if not self.cx.gw.online:
             return offline
         res = self.cx.gw.complete("plan", [
-            {"role": "system", "content": "Break the analyst's goal into 3-5 standalone questions answerable from an "
-                                          "e-commerce warehouse (orders, revenue, deliveries, review scores), customer "
-                                          "review text and store policies. Return JSON {\"questions\": [str]}."},
+            {"role": "system", "content": f"Break the analyst's goal into 3-5 standalone questions answerable from: "
+                                          f"{self.cx.domain.title}. Use only these metrics:\n{self.cx.layer.describe()}\n"
+                                          "Return JSON {\"questions\": [str]}."},
             {"role": "user", "content": goal}], json_mode=True, offline=lambda: json.dumps({"questions": offline}))
         qs = (parse_json(res.text) or {}).get("questions") or offline
         return [q for q in qs if isinstance(q, str)][: self.budget.max_steps] or offline

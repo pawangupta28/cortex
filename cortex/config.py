@@ -27,18 +27,34 @@ class ProviderConfig:
 class Settings:
     domain: str = field(default_factory=lambda: _env("CORTEX_DOMAIN", "ecommerce"))
     data_dir: Path = field(default_factory=lambda: Path(_env("CORTEX_DATA_DIR", str(ROOT / "data"))))
-    artifacts_dir: Path = field(default_factory=lambda: Path(_env("CORTEX_ARTIFACTS_DIR", str(ROOT / "artifacts"))))
-    db_path: Path = field(default_factory=lambda: Path(_env("CORTEX_DB", str(ROOT / "data" / "cortex.duckdb"))))
-    state_db: Path = field(default_factory=lambda: Path(_env("CORTEX_STATE_DB", str(ROOT / "data" / "state.sqlite"))))
+    artifacts_root: Path = field(default_factory=lambda: Path(_env("CORTEX_ARTIFACTS_DIR", str(ROOT / "artifacts"))))
     context_budget_tokens: int = int(_env("CORTEX_CONTEXT_BUDGET", "3000"))
     sql_row_limit: int = int(_env("CORTEX_SQL_ROW_LIMIT", "200"))
     sql_timeout_s: float = float(_env("CORTEX_SQL_TIMEOUT", "5"))
     cache_threshold: float = float(_env("CORTEX_CACHE_THRESHOLD", "0.97"))
     conformal_alpha: float = float(_env("CORTEX_CONFORMAL_ALPHA", "0.1"))
 
+    # Every domain gets its own warehouse, state store and artifacts, so domains coexist.
     @property
     def domain_dir(self) -> Path:
         return ROOT / "domains" / self.domain
+
+    @property
+    def artifacts_dir(self) -> Path:
+        return self.artifacts_root / self.domain
+
+    @property
+    def db_path(self) -> Path:
+        return self.data_dir / f"{self.domain}.duckdb"
+
+    @property
+    def state_db(self) -> Path:
+        return self.data_dir / f"{self.domain}_state.sqlite"
+
+    def use_domain(self, name: str) -> None:
+        if not (ROOT / "domains" / name / "domain.yaml").exists():
+            raise ValueError(f"unknown domain {name!r}; available: {available_domains()}")
+        self.domain = name
 
     def providers(self) -> list[ProviderConfig]:
         """LLM providers enabled by the API keys present in the environment.
@@ -60,3 +76,7 @@ class Settings:
 
 
 settings = Settings()
+
+
+def available_domains() -> list[str]:
+    return sorted(p.parent.name for p in (ROOT / "domains").glob("*/domain.yaml"))

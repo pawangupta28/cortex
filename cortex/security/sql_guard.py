@@ -15,8 +15,6 @@ from dataclasses import dataclass
 import sqlglot
 from sqlglot import exp
 
-ALLOWED_TABLES = {"customers", "orders", "order_items", "products", "sellers", "reviews",
-                  "category_translation", "order_facts"}
 BLOCKED_FUNCS = {"read_csv", "read_csv_auto", "read_parquet", "read_json", "read_json_auto", "read_text",
                  "read_blob", "glob", "load", "install", "attach", "copy", "export", "pragma", "getenv",
                  "query_table", "query"}
@@ -33,18 +31,19 @@ class GuardedSQL:
     rls_applied: bool
 
 
-def _rls_ctes(states: list[str]) -> str:
-    st = ", ".join("'" + s.replace("'", "") + "'" for s in states)
-    return (
-        f"customers AS (SELECT * FROM main.customers WHERE customer_state IN ({st})), "
-        f"orders AS (SELECT o.* FROM main.orders o WHERE o.customer_id IN (SELECT customer_id FROM customers)), "
-        f"order_items AS (SELECT i.* FROM main.order_items i WHERE i.order_id IN (SELECT order_id FROM orders)), "
-        f"reviews AS (SELECT r.* FROM main.reviews r WHERE r.order_id IN (SELECT order_id FROM orders)), "
-        f"order_facts AS (SELECT f.* FROM main.order_facts f WHERE f.customer_state IN ({st}))"
-    )
+def _rls_ctes(values: list[str]) -> str:
+    """Shadow each scoped base table with a filtered CTE, as the domain pack defines them."""
+    from cortex.domain import get_domain
+    vals = ", ".join("'" + str(v).replace("'", "") + "'" for v in values)
+    ctes = get_domain().rls.get("ctes", {})
+    return ", ".join(f"{name} AS ({tmpl.format(values=vals)})" for name, tmpl in ctes.items())
 
 
-def guard(sql: str, allowed_states: list[str] | str = "*", row_limit: int = 200) -> GuardedSQL:
+def guard(sql: str, allowed_scope: list[str] | str = "*", row_limit: int = 200,
+          allowed_tables: set[str] | None = None) -> GuardedSQL:
+    if allowed_tables is None:
+        from cortex.domain import get_domain
+        allowed_tables = get_domain().tables
     try:
         statements = sqlglot.parse(sql, read="duckdb")
     except sqlglot.errors.ParseError as e:
@@ -63,7 +62,7 @@ def guard(sql: str, allowed_states: list[str] | str = "*", row_limit: int = 200)
         raise SQLRejected("schema-qualified table names are not allowed")
     cte_names = {c.alias_or_name.lower() for c in tree.find_all(exp.CTE)}
     tables = sorted({t.name.lower() for t in tree.find_all(exp.Table)} - cte_names)
-    unknown = [t for t in tables if t not in ALLOWED_TABLES]
+    unknown = [t for t in tables if t not in allowed_tables]
     if unknown:
         raise SQLRejected(f"unknown or forbidden tables: {unknown}")
     for fn in tree.find_all(exp.Func):
@@ -74,7 +73,7 @@ def guard(sql: str, allowed_states: list[str] | str = "*", row_limit: int = 200)
     if isinstance(tree, exp.Select) and not tree.args.get("limit"):
         tree = tree.limit(row_limit)
     body = tree.sql(dialect="duckdb")
-    rls = allowed_states != "*"
+    rls = allowed_scope != "*"
     if rls:
-        body = f"WITH {_rls_ctes(list(allowed_states))} SELECT * FROM ({body}) AS rls_q"
+        body = f"WITH {_rls_ctes(list(allowed_scope))} SELECT * FROM ({body}) AS rls_q"
     return GuardedSQL(sql=body, tables=tables, rls_applied=rls)

@@ -87,10 +87,18 @@ def ui():
     return FileResponse(STATIC / "index.html")
 
 
+@app.get("/v1/domain")
+def domain_info():
+    cx = cortex()
+    return {"name": cx.domain.name, "title": cx.domain.title, "examples": cx.domain.examples,
+            "roles": list(cx.policy.roles), "investigation_example": (cx.domain.investigation.get("example")
+                                                                     or "Investigate " + (cx.domain.examples or [""])[0])}
+
+
 @app.get("/health")
 def health():
     cx = cortex()
-    return {"status": "ok", "mode": "online" if cx.gw.online else "offline-deterministic",
+    return {"status": "ok", "domain": cx.domain.name, "mode": "online" if cx.gw.online else "offline-deterministic",
             "providers": list(cx.gw.providers), "data_version": cx.data_version,
             "chunks": {k: len(v.chunks) for k, v in cx.corpus.collections.items()},
             "cache": cx.cache.stats()}

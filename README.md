@@ -1,120 +1,138 @@
-# Cortex — enterprise GenAI platform (MVP)
+# Cortex — domain-agnostic enterprise GenAI platform
 
-Cortex turns a company's warehouse data, documents and customer text into **cited, verified answers** and **governed multi-step agent workflows**. It ships with evaluation, security and tracing built in. This MVP runs the e-commerce domain end to end, **fully offline with no API keys**. It switches to free LLM APIs (Groq, Gemini, OpenRouter) when you add keys.
+Cortex turns an organisation's warehouse data and documents into **cited, number-verified answers** and **governed multi-step agent workflows**, with evaluation, security and tracing built in. Each domain is a pluggable **domain pack**. The retrieval, SQL, agent, security, evaluation and API layers are the same for all of them.
+
+Two packs ship today:
+
+| Domain | Data | What it shows |
+| --- | --- | --- |
+| **finance** (flagship) | **Real SEC data** for Apple, Microsoft, NVIDIA, Alphabet and Amazon: XBRL financial facts (8.7k), 344 company-quarters, latest 10-K and 10-Q text (1,375 passages) | Messy real-world data engineering, long-document RAG, analytics across companies, live external API tool |
+| **ecommerce** | Olist schema: real CSVs if present, otherwise a deterministic synthetic set with planted causes | Text-to-SQL over a multi-table warehouse, review-theme mining, policy documents |
+
+Example finance answer, fully offline, with every number checked against its source:
+
+> **Q: How did NVIDIA's gross margin change over the last 8 quarters and what drove it?**
+> Gross margin for NVDA went from 74.6% in 2024-Q3 to 75.0% in 2026-Q2 (+0.4 points) [E2]. The peak was 75.0% in 2025-Q4 [E1]. NVDA 10-Q (2026-08-26) Item 2 MD&A: Gross margin increased to 75.0% for the second quarter of fiscal year 2027 compared to 72.4% … due to improved mix from Blackwell Ultra. Gross margin for the first half of fiscal year 2026 was also impacted by a $4.5 billion charge associated with H20 excess inventory and purchase obligations. [E3]
+> *hybrid · confidence 0.96 · all numbers verified*
+
+## How a question flows
 
 ```
-question ─► input guard ─► cache ─► planner ─┬─► text-to-SQL (semantic layer ► SQL guard ► RLS) ─► analyst (computed facts)
-                                             └─► hybrid retrieval (BM25 + dense ► RRF ► MMR) ─► injection quarantine
+question ─► input guard ─► cache ─► planner ─┬─► semantic layer ► SQL guard ► row-level security ► warehouse ─► analyst (computed facts)
+                                             └─► hybrid retrieval (BM25 + dense ► RRF ► MMR, section routing) ─► injection quarantine
          ─► context builder (token knapsack, cache-stable order) ─► model gateway (bandit router, fallback, breakers)
-         ─► verifier (every number traced to evidence) ─► conformal confidence ─► answer + citations + trace
+         ─► verifier (every number traced to evidence) ─► per-intent conformal confidence ─► answer + citations + trace
 ```
 
 ## Quickstart
 
 ```bash
 pip install -r requirements.txt
-python -m cortex.cli init --synthetic      # data, warehouse view, chunks, indexes (~15 s)
-python -m cortex.cli eval                  # evaluation lab → evals/REPORT.md
-python -m cortex.cli serve                 # UI + API on http://127.0.0.1:8000
-python -m pytest -q                        # 31 tests, offline and deterministic
+
+# Finance (real SEC data; free API, no key, ~60 MB):
+#   PowerShell: $env:SEC_USER_AGENT="Your Name you@email.com"
+export SEC_USER_AGENT="Your Name you@email.com"      # required by the SEC's fair-access policy
+python -m cortex.cli --domain finance fetch-sec      # AAPL MSFT NVDA GOOGL AMZN by default
+python -m cortex.cli --domain finance init
+python -m cortex.cli --domain finance eval
+python -m cortex.cli --domain finance serve          # UI + API on http://127.0.0.1:8000
+
+# E-commerce (runs with zero downloads):
+python -m cortex.cli --domain ecommerce init --synthetic
+python -m cortex.cli --domain ecommerce serve
+
+python -m pytest -q                                  # 37 tests; finance end-to-end skips without SEC data
 ```
 
-**Windows (PowerShell):** run every command from inside the unzipped `cortex` folder, the one that contains `requirements.txt`:
-
-```powershell
-cd $HOME\Downloads\cortex-mvp\cortex      # adjust to wherever requirements.txt is
-python -m pip install -r requirements.txt
-python -m cortex.cli init --synthetic
-python -m cortex.cli serve
-```
-
-Try in the CLI:
+Try:
 
 ```bash
-python -m cortex.cli ask "Which product categories have the highest late delivery rate?"
-python -m cortex.cli ask "Why do customers complain about auto parts?"
-python -m cortex.cli ask "revenue by state" --role regional_manager_sp     # row-level security
-python -m cortex.cli task "Investigate why office furniture customers are unhappy" --approve
+python -m cortex.cli --domain finance ask "Which company had the highest operating margin in the latest quarter?"
+python -m cortex.cli --domain finance ask "Compare Apple and Microsoft revenue over the last 4 quarters"
+python -m cortex.cli --domain finance ask "What does NVIDIA say about export controls?"
+python -m cortex.cli --domain finance ask "revenue by company" --role semis_analyst      # row-level security: NVDA only
+python -m cortex.cli --domain finance ask "What was Tesla's revenue last quarter?"     # declined: not in the dataset
+python -m cortex.cli --domain finance task "Investigate NVIDIA's margins and risks" --approve
 ```
 
-Docker: `docker compose up --build`. CI: `.github/workflows/ci.yml` runs lint, tests and the eval gate.
+## Data engineering in the finance pack
 
-## What is built
+Real XBRL data is messy. The pack handles each of these problems explicitly (`domains/finance/pack.py`):
 
-| Layer | What runs in this MVP | Where |
+- **Concept drift.** The same line item is tagged differently across companies and years (NVIDIA uses `Revenues`, Apple uses `RevenueFromContractWithCustomerExcludingAssessedTax`). Candidate concepts are ranked by how recently they were reported, and each period takes its value from the best concept that has it.
+- **Restatements.** The same period appears in many filings; the latest filing wins.
+- **Fiscal Q4 is not reported as a quarter.** It is derived as the full year minus Q1–Q3 and flagged `q4_derived`. EPS isn't additive, so it is not derived for those quarters.
+- **Trailing-twelve-month values in 10-Qs** look like annual figures. Only 10-K fiscal-year facts count as years.
+- **Different fiscal calendars.** Apple's year ends in September and NVIDIA's in January. Every quarter gets a calendar label (end date minus 40 days, the SEC frame convention) so companies can be compared, and also keeps its fiscal label (`FY2027 Q2`).
+- **Filings.** 10-K and 10-Q HTML is parsed into Items. Tables of contents and repeated page headers also contain "Item N." lines, so each item keeps its longest span. Items are chunked by sub-heading with the section path preserved.
+- **Independent gold answers.** The test answers come from the SEC's own `frame` labels in the raw JSON, not from Cortex's quarter-alignment code, so an alignment bug fails the test instead of being copied into the expected answer.
+
+## Current evaluation (offline mode)
+
+Full reports: [`evals/finance/REPORT.md`](evals/finance/REPORT.md) and [`evals/ecommerce/REPORT.md`](evals/ecommerce/REPORT.md). These are regression baselines. The question templates were used during development and the holdout splits are small, so test with your own questions before quoting a number.
+
+| Measure | Finance (real SEC data) | E-commerce (synthetic) |
 | --- | --- | --- |
-| 1 Ingestion | Olist-schema loader (real CSVs drop in), deterministic synthetic generator with planted causes, schema profiler, lineage + checksums, heading-aware chunking | `cortex/ingest/` |
-| 2 Retrieval | BM25 (own implementation), LSA dense vectors, weighted reciprocal rank fusion, MMR, metadata filters, one index per collection | `cortex/retrieval/index.py` |
-| 2 Text-to-SQL | Semantic layer (metrics in YAML) → QuerySpec → compiled SQL; LLM spec path + raw-SQL self-correction loop when keys are set | `semantic_layer.py`, `text2sql.py` |
-| 3 Context | Token-budget knapsack, slot priorities, cache-stable ordering, manifest of kept/evicted items | `cortex/context/builder.py` |
-| 4 Gateway | OpenAI-compatible adapters, retries with jitter, circuit breakers, fallback chain, shadow-cost accounting, offline degradation | `cortex/gateway/gateway.py` |
-| 4 Router | Linear Thompson-sampling contextual bandit with Lagrangian cost budget, plus a ground-truth simulation | `cortex/gateway/router.py` |
-| 4 Cache | Semantic cache keyed by role and data version; exact spec keys for metrics; literals + Jaccard guard for text | `cortex/gateway/cache.py` |
-| 5 Agents | Analyst (computed facts, weighted log-odds themes), verifier, durable state machine with checkpoints, crash-resume, budgets, loop detection, human approval, idempotent actor, saga rollback | `cortex/agents/` |
-| 5 Protocols | MCP server (SDK 2.x, negotiates spec 2026-07-28, stateless Streamable HTTP + stdio); A2A-style Agent Card and `message/send` endpoint | `cortex/api/` |
-| 6 Uncertainty | Signal combiner (logistic, fitted on dev), per-intent (Mondrian) split-conformal thresholds, ECE, risk–coverage | `cortex/uncertainty/` |
-| 7 Evals | 102-question golden set with gold SQL on base tables, bootstrap CIs, paired tests, McNemar, kappa, power analysis, CI gate | `cortex/evals/` |
-| 8 Security | SQL guard (SELECT-only, allow-list, no file/extension functions), row-level security via shadowing CTEs, injection detector + quarantine + spotlighting, PII redaction, per-agent/per-role tool policy with audit log | `cortex/security/` |
-| 9 Tracing | Spans with OpenTelemetry GenAI attribute names in `artifacts/traces.jsonl`; optional OTLP export | `cortex/telemetry/` |
+| Golden-set accuracy | 97.1% of 70, CI [92.9, 100] | 97.1% of 102, CI [93.1, 100] |
+| Numeric answers (values, rankings, trends) | 100% | 100% |
+| Document questions | 81.8% (fails: "Where does NVIDIA manufacture its chips?" — vocabulary mismatch with the TSMC passage) | 95.5% |
+| Out-of-scope questions declined | 5 / 5 (Tesla, Meta, forecasts, off-topic) | 6 / 6 |
+| Prompt injection success, defences off → on | 38% → 0% | 38% → 0% |
+| Malicious SQL blocked | 12 / 12 | 12 / 12 |
+| Row-level security leaks | 0 | 0 |
+| Retrieval recall@3: BM25 / LSA dense / hybrid | 81.8% / 63.6% / 81.8% | 100% / 100% / 100% |
+| Latency p50 / p95 (offline) | 28 ms / 59 ms | ~38 ms / ~56 ms |
 
-## Current evaluation (offline mode, synthetic data)
+Router (simulation with known ground truth): 58.7% lower cost per call than always using the frontier model, for 3.5 points less quality, within a fixed budget.
 
-Full report: [`evals/REPORT.md`](evals/REPORT.md). **These are development numbers.** The data is synthetic, the question templates were used while fixing the parser, and the holdout is about 20 questions. Re-run on the real Olist data before quoting anything.
+## Layers
 
-| Measure | Result |
-| --- | --- |
-| Golden-set accuracy (102 questions) | 98.0%, 95% CI [95.1%, 100%] |
-| Hybrid "why" questions | 83.3% (2 of 12 miss the planted theme) |
-| Unanswerable questions correctly declined | 6 / 6 |
-| Prompt-injection attack success, defences off → on | 38% → 0% (8 cases) |
-| Malicious SQL blocked by guard | 12 / 12 |
-| Row-level security leaks | 0 |
-| Cache precision on paraphrase pairs: embeddings only → production keys | 4% → 100% |
-| Router cost per call vs always-frontier (simulation) | −58.7%, quality −3.5 pts |
-| Conformal abstention on the holdout (~18 answers) | kept 88% of correct answers vs a 90% target; no error reduction at this sample size |
-| Latency p50 / p95 (offline) | ~38 ms / ~56 ms |
+| Layer | In this repo | Where |
+| --- | --- | --- |
+| Domain packs | `domain.yaml` + `semantic_layer.yaml` + `glossary.yaml` + `policies.yaml` + `pack.py` per domain; adding a domain doesn't change core code | `domains/`, `cortex/domain.py` |
+| 1 Ingestion | Pack loaders, schema profiler, lineage with checksums, heading-aware chunking | `cortex/ingest/`, `domains/*/pack.py` |
+| 2 Retrieval | BM25 (own implementation), LSA dense, weighted RRF, MMR, metadata filters, per-collection indexes, section routing, de-duplication | `cortex/retrieval/index.py`, `agents/pipeline.py` |
+| 2 Text-to-SQL | Semantic layer (metrics, entities, time and recency in YAML) → QuerySpec → SQL; LLM spec path; guarded raw-SQL self-correction | `semantic_layer.py`, `text2sql.py` |
+| 3 Context | Token-budget knapsack, slot priorities, cache-stable order, manifest | `cortex/context/builder.py` |
+| 4 Gateway | OpenAI-compatible adapters, retries, circuit breakers, fallback, shadow cost, offline degradation, bandit router, scoped semantic cache | `cortex/gateway/` |
+| 5 Agents | Analyst (computed facts, multi-series trends, log-odds themes), verifier ($/B/M aware), durable state machine with checkpoints, human approval, idempotent saga actions | `cortex/agents/` |
+| 5 Protocols | MCP server (SDK 2.x, spec 2026-07-28, stateless HTTP + stdio) including a **live SEC API tool**; A2A-style Agent Card | `cortex/api/` |
+| 6 Uncertainty | Logistic confidence, **per-intent (Mondrian) conformal** thresholds, ECE, risk–coverage | `cortex/uncertainty/` |
+| 7 Evals | Per-domain golden sets with independent gold answers, bootstrap CIs, paired tests, power analysis, CI gate | `cortex/evals/` |
+| 8 Security | SQL guard, row-level security from domain config, injection quarantine + spotlighting, PII redaction, per-role/per-agent tool policy with audit | `cortex/security/` |
+| 9 Tracing | OpenTelemetry GenAI attribute names, JSONL traces, optional OTLP export | `cortex/telemetry/` |
 
 ## Turning on real LLMs (free tiers)
 
-Copy `.env.example` to `.env` and set any of `GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`. Model names change often, so set `*_MODEL` to a current free model. With keys set:
-
-- the planner and the QuerySpec come from the model, and the deterministic parser cross-checks them;
-- raw SQL is allowed outside the semantic layer, but still has to pass the guard;
-- the writer is the model, and its numbers are verified, with one rewrite allowed;
-- the bandit routes between providers, using verifier outcomes as the reward.
-
-## Real Olist data
-
-Download the [Olist Brazilian e-commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce). Put its CSVs in `data/raw/olist/`, then run `python -m cortex.cli init` (without `--synthetic`) and `eval`. Review text in the real data is Portuguese, so expect theme extraction and the review glossary to need Portuguese terms.
+Copy `.env.example` to `.env` and set any of `GROQ_API_KEY`, `GEMINI_API_KEY` or `OPENROUTER_API_KEY`. Model names change often, so also set the `*_MODEL` variables. With keys set, the planner and query spec come from the model and the deterministic parser cross-checks them. The writer becomes the model, and its numbers are still verified. The bandit routes between providers, using verifier outcomes as its reward.
 
 ## Use from Claude Code (MCP)
 
 ```bash
-claude mcp add cortex -- python -m cortex.cli mcp      # stdio, run from the repo root
-# or HTTP: the API mounts MCP at http://127.0.0.1:8000/mcp/
+claude mcp add cortex -- python -m cortex.cli --domain finance mcp
 ```
 
-Tools: `ask`, `run_metric`, `search_policies`.
+Tools: `ask`, `run_metric`, `search_documents`, `sec_live_quarters`. The last one calls data.sec.gov live and needs `SEC_USER_AGENT`.
 
-## API
+## Adding a domain
 
-| Method and path | Purpose |
-| --- | --- |
-| `POST /v1/ask` (header `X-Role`) | Question → answer, citations, confidence, SQL, signals, trace id |
-| `POST /v1/tasks` · `GET /v1/tasks/{id}` · `POST /v1/tasks/{id}/decision` | Agent task, report, approval |
-| `GET /v1/traces/{trace_id}` | Span tree for one answer |
-| `GET /v1/evals/latest` · `GET /v1/router/simulation` | Eval report, router study |
-| `GET /.well-known/agent-card.json` · `POST /a2a` | A2A-style discovery and `message/send` |
-| `/mcp/` | MCP Streamable HTTP (stateless) |
+Copy `domains/finance/`, then:
 
-## Not built yet (blueprint weeks 2–4)
+1. Describe your tables in `domain.yaml` and their row-level security CTEs.
+2. Define your metrics, entities and time handling in `semantic_layer.yaml`.
+3. List entity names in `glossary.yaml`.
+4. Set roles and data scopes in `policies.yaml`.
+5. Write `ingest()` and `golden()` in `pack.py`.
 
-- **Finance and legal domains.** EDGAR/XBRL and CUAD packs.
-- **Graph retrieval and better embeddings.** Graph retrieval with Leiden communities, and a real embedding model. `CORTEX_EMBEDDER=st` already works where Hugging Face is reachable.
-- **Fine-tuned small model.** The LoRA training run (`training/README.md`).
-- **Real login.** Keycloak OIDC in place of the `X-Role` header.
-- **Deployment.** Postgres + pgvector, Terraform/k3s deploy, Langfuse/Grafana dashboards.
-- **A2A conformance.** The A2A endpoint is a minimal subset; validate it against the official SDK before claiming conformance.
-- **LLM judge.** An LLM-as-judge with kappa against human grades. `cohen_kappa` exists; the judge does not.
+Then run `python -m cortex.cli --domain <name> init` and `eval`.
+
+## Not built yet
+
+- Graph retrieval and a real embedding model. `CORTEX_EMBEDDER=st` works where Hugging Face is reachable, and is the likely fix for the TSMC-style miss.
+- The LoRA training run (`training/README.md`).
+- Keycloak OIDC in place of the `X-Role` header.
+- Postgres + pgvector, a Terraform/k3s deployment, and dashboards.
+- A2A conformance testing against the official SDK.
+- An LLM-as-judge with kappa against human grades.
 
 Design decisions: [`docs/adr/`](docs/adr/).

@@ -1,0 +1,70 @@
+{"id": "rev_AAPL#0", "template": "rev_AAPL", "type": "metric_value", "question": "What was Apple's revenue in Q2 2026?", "gold": {"values": [109417000000.0]}, "split": "holdout"}
+{"id": "rev_AAPL#1", "template": "rev_AAPL", "type": "metric_value", "question": "Apple revenue for calendar Q2 2026", "gold": {"values": [109417000000.0]}, "split": "holdout"}
+{"id": "gm_AAPL#0", "template": "gm_AAPL", "type": "metric_value", "question": "What was Apple's gross margin in Q2 2026?", "gold": {"values": [0.5006]}, "split": "calib"}
+{"id": "om_AAPL#0", "template": "om_AAPL", "type": "metric_value", "question": "What was Apple's operating margin in Q2 2026?", "gold": {"values": [0.3262]}, "split": "dev"}
+{"id": "om_AAPL#1", "template": "om_AAPL", "type": "metric_value", "question": "Apple operating margin Q2 2026", "gold": {"values": [0.3262]}, "split": "dev"}
+{"id": "ni_AAPL#0", "template": "ni_AAPL", "type": "metric_value", "question": "What was Apple's net income in Q2 2026?", "gold": {"values": [29789000000.0]}, "split": "dev"}
+{"id": "rev_MSFT#0", "template": "rev_MSFT", "type": "metric_value", "question": "What was Microsoft's revenue in Q3 2026?", "gold": {"values": [92279000000.0]}, "split": "calib"}
+{"id": "rev_MSFT#1", "template": "rev_MSFT", "type": "metric_value", "question": "Microsoft revenue for calendar Q3 2026", "gold": {"values": [92279000000.0]}, "split": "calib"}
+{"id": "gm_MSFT#0", "template": "gm_MSFT", "type": "metric_value", "question": "What was Microsoft's gross margin in Q3 2026?", "gold": {"values": [0.6779]}, "split": "dev"}
+{"id": "om_MSFT#0", "template": "om_MSFT", "type": "metric_value", "question": "What was Microsoft's operating margin in Q3 2026?", "gold": {"values": [0.4976]}, "split": "dev"}
+{"id": "om_MSFT#1", "template": "om_MSFT", "type": "metric_value", "question": "Microsoft operating margin Q3 2026", "gold": {"values": [0.4976]}, "split": "dev"}
+{"id": "ni_MSFT#0", "template": "ni_MSFT", "type": "metric_value", "question": "What was Microsoft's net income in Q3 2026?", "gold": {"values": [36629000000.0]}, "split": "holdout"}
+{"id": "last_rev_MSFT#0", "template": "last_rev_MSFT", "type": "metric_value", "question": "Microsoft revenue last quarter", "gold": {"values": [92279000000.0]}, "split": "calib"}
+{"id": "last_rev_MSFT#1", "template": "last_rev_MSFT", "type": "metric_value", "question": "What was Microsoft's latest quarterly revenue?", "gold": {"values": [92279000000.0]}, "split": "calib"}
+{"id": "trend_rev_MSFT#0", "template": "trend_rev_MSFT", "type": "metric_trend", "question": "Microsoft revenue over the last 8 quarters", "gold": {"values": [69632000000.0, 92279000000.0]}, "split": "dev"}
+{"id": "trend_rev_MSFT#1", "template": "trend_rev_MSFT", "type": "metric_trend", "question": "How has Microsoft's quarterly revenue changed over the past 8 quarters?", "gold": {"values": [69632000000.0, 92279000000.0]}, "split": "dev"}
+{"id": "rev_NVDA#0", "template": "rev_NVDA", "type": "metric_value", "question": "What was NVIDIA's revenue in Q2 2026?", "gold": {"values": [96221000000.0]}, "split": "calib"}
+{"id": "rev_NVDA#1", "template": "rev_NVDA", "type": "metric_value", "question": "NVIDIA revenue for calendar Q2 2026", "gold": {"values": [96221000000.0]}, "split": "calib"}
+{"id": "gm_NVDA#0", "template": "gm_NVDA", "type": "metric_value", "question": "What was NVIDIA's gross margin in Q2 2026?", "gold": {"values": [0.7498]}, "split": "dev"}
+{"id": "om_NVDA#0", "template": "om_NVDA", "type": "metric_value", "question": "What was NVIDIA's operating margin in Q2 2026?", "gold": {"values": [0.6624]}, "split": "dev"}
+{"id": "om_NVDA#1", "template": "om_NVDA", "type": "metric_value", "question": "NVIDIA operating margin Q2 2026", "gold": {"values": [0.6624]}, "split": "dev"}
+{"id": "ni_NVDA#0", "template": "ni_NVDA", "type": "metric_value", "question": "What was NVIDIA's net income in Q2 2026?", "gold": {"values": [59688000000.0]}, "split": "dev"}
+{"id": "last_rev_NVDA#0", "template": "last_rev_NVDA", "type": "metric_value", "question": "NVIDIA revenue last quarter", "gold": {"values": [96221000000.0]}, "split": "holdout"}
+{"id": "last_rev_NVDA#1", "template": "last_rev_NVDA", "type": "metric_value", "question": "What was NVIDIA's latest quarterly revenue?", "gold": {"values": [96221000000.0]}, "split": "holdout"}
+{"id": "trend_rev_NVDA#0", "template": "trend_rev_NVDA", "type": "metric_trend", "question": "NVIDIA revenue over the last 8 quarters", "gold": {"values": [35082000000.0, 96221000000.0]}, "split": "holdout"}
+{"id": "trend_rev_NVDA#1", "template": "trend_rev_NVDA", "type": "metric_trend", "question": "How has NVIDIA's quarterly revenue changed over the past 8 quarters?", "gold": {"values": [35082000000.0, 96221000000.0]}, "split": "holdout"}
+{"id": "rev_GOOGL#0", "template": "rev_GOOGL", "type": "metric_value", "question": "What was Alphabet's revenue in Q3 2026?", "gold": {"values": [127577000000.0]}, "split": "holdout"}
+{"id": "rev_GOOGL#1", "template": "rev_GOOGL", "type": "metric_value", "question": "Alphabet revenue for calendar Q3 2026", "gold": {"values": [127577000000.0]}, "split": "holdout"}
+{"id": "gm_GOOGL#0", "template": "gm_GOOGL", "type": "metric_value", "question": "What was Alphabet's gross margin in Q3 2026?", "gold": {"values": [0.597]}, "split": "holdout"}
+{"id": "om_GOOGL#0", "template": "om_GOOGL", "type": "metric_value", "question": "What was Alphabet's operating margin in Q3 2026?", "gold": {"values": [0.3181]}, "split": "calib"}
+{"id": "om_GOOGL#1", "template": "om_GOOGL", "type": "metric_value", "question": "Alphabet operating margin Q3 2026", "gold": {"values": [0.3181]}, "split": "calib"}
+{"id": "ni_GOOGL#0", "template": "ni_GOOGL", "type": "metric_value", "question": "What was Alphabet's net income in Q3 2026?", "gold": {"values": [26468000000.0]}, "split": "calib"}
+{"id": "last_rev_GOOGL#0", "template": "last_rev_GOOGL", "type": "metric_value", "question": "Alphabet revenue last quarter", "gold": {"values": [127577000000.0]}, "split": "dev"}
+{"id": "last_rev_GOOGL#1", "template": "last_rev_GOOGL", "type": "metric_value", "question": "What was Alphabet's latest quarterly revenue?", "gold": {"values": [127577000000.0]}, "split": "dev"}
+{"id": "rev_AMZN#0", "template": "rev_AMZN", "type": "metric_value", "question": "What was Amazon's revenue in Q3 2026?", "gold": {"values": [201944000000.0]}, "split": "calib"}
+{"id": "rev_AMZN#1", "template": "rev_AMZN", "type": "metric_value", "question": "Amazon revenue for calendar Q3 2026", "gold": {"values": [201944000000.0]}, "split": "calib"}
+{"id": "gm_AMZN#0", "template": "gm_AMZN", "type": "metric_value", "question": "What was Amazon's gross margin in Q3 2026?", "gold": {"values": [0.5317]}, "split": "dev"}
+{"id": "om_AMZN#0", "template": "om_AMZN", "type": "metric_value", "question": "What was Amazon's operating margin in Q3 2026?", "gold": {"values": [0.139]}, "split": "holdout"}
+{"id": "om_AMZN#1", "template": "om_AMZN", "type": "metric_value", "question": "Amazon operating margin Q3 2026", "gold": {"values": [0.139]}, "split": "holdout"}
+{"id": "ni_AMZN#0", "template": "ni_AMZN", "type": "metric_value", "question": "What was Amazon's net income in Q3 2026?", "gold": {"values": [20685000000.0]}, "split": "holdout"}
+{"id": "last_rev_AMZN#0", "template": "last_rev_AMZN", "type": "metric_value", "question": "Amazon revenue last quarter", "gold": {"values": [201944000000.0]}, "split": "dev"}
+{"id": "last_rev_AMZN#1", "template": "last_rev_AMZN", "type": "metric_value", "question": "What was Amazon's latest quarterly revenue?", "gold": {"values": [201944000000.0]}, "split": "dev"}
+{"id": "rank_revenue_2026-Q1#0", "template": "rank_revenue_2026-Q1", "type": "metric_rank", "question": "Which company had the highest revenue in Q1 2026?", "gold": {"label": "AMZN", "values": [181519000000.0]}, "split": "dev"}
+{"id": "rank_revenue_2026-Q1#1", "template": "rank_revenue_2026-Q1", "type": "metric_rank", "question": "Top company by revenue in Q1 2026", "gold": {"label": "AMZN", "values": [181519000000.0]}, "split": "dev"}
+{"id": "rank_gm_2026-Q1#0", "template": "rank_gm_2026-Q1", "type": "metric_rank", "question": "Which company had the highest gross margin in Q1 2026?", "gold": {"label": "NVDA", "values": [0.7493]}, "split": "dev"}
+{"id": "rank_gm_2026-Q1#1", "template": "rank_gm_2026-Q1", "type": "metric_rank", "question": "Top company by gross margin in Q1 2026", "gold": {"label": "NVDA", "values": [0.7493]}, "split": "dev"}
+{"id": "rank_om_2026-Q1#0", "template": "rank_om_2026-Q1", "type": "metric_rank", "question": "Which company had the highest operating margin in Q1 2026?", "gold": {"label": "NVDA", "values": [0.656]}, "split": "calib"}
+{"id": "rank_om_2026-Q1#1", "template": "rank_om_2026-Q1", "type": "metric_rank", "question": "Top company by operating margin in Q1 2026", "gold": {"label": "NVDA", "values": [0.656]}, "split": "calib"}
+{"id": "doc_NVDA_export#0", "template": "doc_NVDA_export", "type": "docs", "question": "What does NVIDIA say about export controls?", "gold": {"ticker": "NVDA", "fact": "export control"}, "split": "calib"}
+{"id": "doc_NVDA_export#1", "template": "doc_NVDA_export", "type": "docs", "question": "How do export restrictions affect NVIDIA?", "gold": {"ticker": "NVDA", "fact": "export control"}, "split": "calib"}
+{"id": "doc_NVDA_foundry#0", "template": "doc_NVDA_foundry", "type": "docs", "question": "Where does NVIDIA manufacture its chips?", "gold": {"ticker": "NVDA", "fact": "TSMC"}, "split": "dev"}
+{"id": "doc_NVDA_foundry#1", "template": "doc_NVDA_foundry", "type": "docs", "question": "Which foundries does NVIDIA rely on?", "gold": {"ticker": "NVDA", "fact": "TSMC"}, "split": "dev"}
+{"id": "doc_AAPL_tariffs#0", "template": "doc_AAPL_tariffs", "type": "docs", "question": "What does Apple say about tariffs?", "gold": {"ticker": "AAPL", "fact": "tariff"}, "split": "dev"}
+{"id": "doc_AAPL_tariffs#1", "template": "doc_AAPL_tariffs", "type": "docs", "question": "How do tariffs affect Apple?", "gold": {"ticker": "AAPL", "fact": "tariff"}, "split": "dev"}
+{"id": "doc_MSFT_openai#0", "template": "doc_MSFT_openai", "type": "docs", "question": "What does Microsoft say about its relationship with OpenAI?", "gold": {"ticker": "MSFT", "fact": "OpenAI"}, "split": "dev"}
+{"id": "doc_GOOGL_antitrust#0", "template": "doc_GOOGL_antitrust", "type": "docs", "question": "What antitrust risks does Alphabet describe?", "gold": {"ticker": "GOOGL", "fact": "antitrust"}, "split": "calib"}
+{"id": "doc_GOOGL_antitrust#1", "template": "doc_GOOGL_antitrust", "type": "docs", "question": "What does Alphabet say about antitrust?", "gold": {"ticker": "GOOGL", "fact": "antitrust"}, "split": "calib"}
+{"id": "doc_AMZN_aws#0", "template": "doc_AMZN_aws", "type": "docs", "question": "What does Amazon say about AWS?", "gold": {"ticker": "AMZN", "fact": "AWS"}, "split": "dev"}
+{"id": "doc_AMZN_aws#1", "template": "doc_AMZN_aws", "type": "docs", "question": "How does Amazon describe its AWS segment?", "gold": {"ticker": "AMZN", "fact": "AWS"}, "split": "dev"}
+{"id": "why_NVDA#0", "template": "why_NVDA", "type": "hybrid", "question": "How did NVIDIA's gross margin change over the last 8 quarters and what drove it?", "gold": {"any_of": ["blackwell", "mix", "h20", "inventory"], "ticker": "NVDA"}, "split": "dev"}
+{"id": "why_NVDA#1", "template": "why_NVDA", "type": "hybrid", "question": "What drove NVIDIA's gross margin change?", "gold": {"any_of": ["blackwell", "mix", "h20", "inventory"], "ticker": "NVDA"}, "split": "dev"}
+{"id": "why_MSFT#0", "template": "why_MSFT", "type": "hybrid", "question": "Why did Microsoft's revenue grow over the last 4 quarters?", "gold": {"any_of": ["azure", "cloud", "ai"], "ticker": "MSFT"}, "split": "dev"}
+{"id": "why_MSFT#1", "template": "why_MSFT", "type": "hybrid", "question": "What drove Microsoft's revenue growth?", "gold": {"any_of": ["azure", "cloud", "ai"], "ticker": "MSFT"}, "split": "dev"}
+{"id": "why_AMZN#0", "template": "why_AMZN", "type": "hybrid", "question": "What drove Amazon's operating income over the last 4 quarters?", "gold": {"any_of": ["aws", "north america", "international"], "ticker": "AMZN"}, "split": "holdout"}
+{"id": "why_GOOGL#0", "template": "why_GOOGL", "type": "hybrid", "question": "Why did Alphabet's revenue change over the last 4 quarters?", "gold": {"any_of": ["cloud", "search", "youtube", "advertising"], "ticker": "GOOGL"}, "split": "calib"}
+{"id": "unanswerable_0#0", "template": "unanswerable_0", "type": "unanswerable", "question": "What was Tesla's revenue last quarter?", "gold": {"abstain": true}, "split": "dev"}
+{"id": "unanswerable_1#0", "template": "unanswerable_1", "type": "unanswerable", "question": "What was Meta's net income in Q2 2026?", "gold": {"abstain": true}, "split": "holdout"}
+{"id": "unanswerable_2#0", "template": "unanswerable_2", "type": "unanswerable", "question": "What will NVIDIA's revenue be next year?", "gold": {"abstain": true}, "split": "dev"}
+{"id": "unanswerable_3#0", "template": "unanswerable_3", "type": "unanswerable", "question": "What is the capital of France?", "gold": {"abstain": true}, "split": "calib"}
+{"id": "unanswerable_4#0", "template": "unanswerable_4", "type": "unanswerable", "question": "How many subscribers does Netflix have?", "gold": {"abstain": true}, "split": "dev"}

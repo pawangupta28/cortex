@@ -1,0 +1,18 @@
+# Roles: data scope (tickers) and tools. Row-level security is enforced in SQL and on document metadata.
+roles:
+  analyst:
+    scope: "*"
+    tools: [run_sql, search_docs, compute, propose_action]
+  semis_analyst:
+    scope: [NVDA]
+    tools: [run_sql, search_docs, compute]
+  compliance_reviewer:
+    scope: "*"
+    tools: [search_docs]
+agent_tools:
+  planner: []
+  researcher: [run_sql, search_docs]
+  analyst: [compute, run_sql]
+  writer: []
+  verifier: [get_evidence]
+  actor: [create_crm_ticket]

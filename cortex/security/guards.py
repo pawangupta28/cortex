@@ -111,8 +111,9 @@ class PolicyEngine:
             raise PolicyDenied(f"unknown role {role!r}")
         return self.roles[role]
 
-    def allowed_states(self, role: str):
-        return self.role(role)["states"]
+    def allowed_scope(self, role: str):
+        """The data scope of a role (e.g. states, tickers); '*' means everything."""
+        return self.role(role).get("scope", "*")
 
     def check(self, *, agent: str, tool: str, role: str, args: dict | None = None) -> None:
         decision, reason = "allow", ""

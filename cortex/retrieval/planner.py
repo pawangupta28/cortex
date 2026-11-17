@@ -10,33 +10,35 @@ from __future__ import annotations
 import re
 
 from cortex.core.models import Intent, Plan
+from cortex.domain import get_domain
 from cortex.gateway.gateway import Gateway, parse_json
 from cortex.retrieval.semantic_layer import SemanticLayer
 
-DOC_CUES = r"\b(polic(y|ies)|refunds?|returns?|warrant(y|ies)|vouchers?|compensat\w*|rules?|thresholds?|probation|" \
-           r"requirements?|process(es)?|how do|how does|what happens|can i|allowed|must|sla|packaging|" \
-           r"guidelines?|procedures?|escalat\w*|carriers?|shelf life|expir\w*|bulletin|notes?|say about|says about|" \
-           r"defin\w*|considered|meaning|means|estimates?)\b"
-WHY_CUES = r"\b(why|reason|reasons|cause|causes|complain\w*|what do customers say|feedback|themes?|driv\w+)\b"
-REVIEW_CUES = r"\b(review|reviews|customers say|complain\w*|feedback|unhappy|dissatisf\w*)\b"
+WHY_CUES = r"\b(why|reason|reasons|cause|causes|caused|complain\w*|what do customers say|feedback|themes?|driv\w+|drove|explain\w*|behind)\b"
+FORECAST_CUES = r"\b(will|forecast|predict\w*|next year|projected?|expect\w*)\b"
 
 
 class Planner:
     def __init__(self, gateway: Gateway, layer: SemanticLayer | None = None):
         self.gw = gateway
         self.layer = layer or SemanticLayer()
+        self.domain = get_domain()
 
     def rule_plan(self, question: str) -> Plan:
         q = question.lower()
         spec = self.layer.parse(question)
-        doc = bool(re.search(DOC_CUES, q))
+        doc = bool(re.search(self.domain.doc_cues, q))
         why = bool(re.search(WHY_CUES, q))
         filters = dict(spec.filters) if spec else {}
-        if not spec:
-            tmp = self.layer.parse(question + " revenue")   # borrow the filter extractor
-            filters = dict(tmp.filters) if tmp else {}
-        filters["reviews"] = bool(re.search(REVIEW_CUES, q)) or why
-        if spec and re.search(r"\b(will|forecast|predict\w*|next year|projected?)\b", q):
+        for name, vals in self.layer.find_entities(question).items():
+            filters.setdefault(name, vals if len(vals) > 1 else vals[0])
+        filters["reviews"] = bool(re.search(self.domain.opinion_cues, q)) or why
+        missing = self.layer.unavailable_mentions(question)
+        if missing:
+            filters["unavailable"] = missing
+            return Plan(intent=Intent.UNSUPPORTED, confidence=0.9, filters=filters)   # entity not in this dataset
+        if spec and re.search(FORECAST_CUES, q):
+            filters["forecast"] = True
             return Plan(intent=Intent.UNSUPPORTED, confidence=0.8, filters=filters)   # no forecasting model yet
         if spec and why:
             return Plan(intent=Intent.HYBRID, confidence=0.85, filters=filters,
@@ -51,13 +53,13 @@ class Planner:
 
     def plan(self, question: str) -> Plan:
         base = self.rule_plan(question)
-        if not self.gw.online:
+        if not self.gw.online or base.filters.get("unavailable"):
             return base
         res = self.gw.complete("plan", [
-            {"role": "system", "content": "Classify the question for an e-commerce analytics assistant. "
-             "intent is one of: metric (numbers from the sales/orders warehouse), docs (store policies or "
-             "customer review text), hybrid (numbers plus reasons from reviews/policies), unsupported (outside "
-             "the store's data). Return JSON {\"intent\": str, \"confidence\": float}."},
+            {"role": "system", "content": f"Classify the question for an analytics assistant over: {self.domain.title}. "
+             "intent is one of: metric (numbers from the warehouse), docs (answered from documents), "
+             "hybrid (numbers plus reasons from documents), unsupported (outside this data). "
+             "Return JSON {\"intent\": str, \"confidence\": float}."},
             {"role": "user", "content": question}], json_mode=True,
             offline=lambda: '{"intent": "%s", "confidence": %s}' % (base.intent.value, base.confidence))
         data = parse_json(res.text) or {}

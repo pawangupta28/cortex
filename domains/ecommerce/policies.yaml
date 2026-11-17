@@ -1,13 +1,13 @@
 # Role-based access. Row-level security is enforced in SQL, not in prompts.
 roles:
   analyst:
-    states: "*"
+    scope: "*"
     tools: [run_sql, search_docs, compute, propose_action]
   regional_manager_sp:
-    states: [SP]
+    scope: [SP]
     tools: [run_sql, search_docs, compute]
   support_agent:
-    states: "*"
+    scope: "*"
     tools: [search_docs]
 agent_tools:
   planner: []

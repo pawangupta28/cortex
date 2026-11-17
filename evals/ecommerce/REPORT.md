@@ -1,26 +1,26 @@
-# Cortex evaluation report
+# Cortex evaluation report: ecommerce
 
-Generated 2026-11-17 15:21:18 · data: synthetic · mode: offline-deterministic · 102 questions · runtime 6.0 s
+Generated 2026-11-17 16:33:14 · data: synthetic · mode: offline-deterministic · 102 questions · runtime 5.6 s
 
-> **Read this first.** These are development numbers. The data is synthetic with planted structure, the question templates were used while fixing the parser, and the holdout split is small (about 20 questions). Treat them as a regression baseline, not a claim of real-world accuracy. Re-run on the real Olist data and with your own questions before quoting any number.
+> **Read this first.** These are development numbers on synthetic data with planted structure. The question templates were used while building the parser, and the holdout split is small. Treat them as a regression baseline, not real-world accuracy.
 
 ## Accuracy (mean, 95% bootstrap CI)
 
 | Type | Accuracy | CI |
 | --- | --- | --- |
-| docs | 100.0% | [100.0%, 100.0%] |
+| docs | 95.5% | [86.4%, 100.0%] |
 | hybrid | 83.3% | [58.3%, 100.0%] |
 | metric_rank | 100.0% | [100.0%, 100.0%] |
 | metric_trend | 100.0% | [100.0%, 100.0%] |
 | metric_value | 100.0% | [100.0%, 100.0%] |
 | unanswerable | 100.0% | [100.0%, 100.0%] |
-| **overall** | **98.0%** | [95.1%, 100.0%] |
+| **overall** | **97.1%** | [93.1%, 100.0%] |
 
-Smallest change this test set can reliably detect: ±5.4% (80% power).
+Smallest change this test set can reliably detect: ±6.6% (80% power).
 
-Latency p50 39.1 ms, p95 54.0 ms.
+Latency p50 36.9 ms, p95 55.1 ms.
 
-## Retrieval study (policy documents)
+## Retrieval study (reference documents)
 
 | Retriever | Recall@3 | CI | Recall@1 | MRR |
 | --- | --- | --- | --- | --- |
@@ -32,8 +32,8 @@ Hybrid minus BM25 recall: +0.0% (CI [0.0, 0.0]), MRR permutation p = 1.000.
 
 ## Confidence and conformal abstention (holdout)
 
-- alpha = 0.1; global q_hat = 0.035 (from 21 correct calibration answers)
-- per-intent q_hat (Mondrian conformal): metric 0.0086 (n=17, calib); docs 0.0374 (n=24, dev+calib); hybrid 1.0 (n=1, insufficient data: score abstention off)
+- alpha = 0.1; global q_hat = 0.035 (from 20 correct calibration answers)
+- per-intent q_hat (Mondrian conformal): metric 0.0086 (n=17, calib); docs 0.0374 (n=23, dev+calib); hybrid 1.0 (n=1, insufficient data: score abstention off)
 - correct answers kept: 0.882 (target ≥ 90%)
 - error rate among answered: 0.0625 vs 0.0556 without abstention
 - share of holdout answered: 0.889
@@ -46,7 +46,7 @@ Hybrid minus BM25 recall: +0.0% (CI [0.0, 0.0]), MRR permutation p = 1.000.
 | defences off | 38% |
 | defences on | 0% |
 
-SQL guard blocked 12/12 malicious statements. Row-level security leak check: no other states returned.
+SQL guard blocked 12/12 malicious statements. Row-level security (regional_manager_sp): no rows outside the role scope.
 
 ## Model router (simulation with known ground truth)
 
@@ -67,5 +67,6 @@ Embeddings alone confuse 'revenue in 2017' with 'revenue in 2018'. The cache the
 
 ## Failures (first 25)
 
+- `doc_warranty#1`: I can't answer this reliably (outside the data this system covers). Try asking about orders, revenue, deliveries, reviews or store policies.
 - `why_watches_gifts#1`: In the 105 matching reviews, the most distinctive themes are 'late', 'waited', 'past', 'promised' [E1]. Sellers in furniture_decor and office_furniture must use
 - `why_bed_bath_table#1`: In the 115 matching reviews, the most distinctive themes are 'wrong', 'described', 'waited', 'past' [E1]. Sellers in furniture_decor and office_furniture must u

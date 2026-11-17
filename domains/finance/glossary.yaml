@@ -1,0 +1,14 @@
+companies:
+  AAPL: ["Apple", "AAPL", "Apple Inc"]
+  MSFT: ["Microsoft", "MSFT"]
+  NVDA: ["NVIDIA", "Nvidia", "NVDA"]
+  GOOGL: ["Alphabet", "Google", "GOOGL", "GOOG"]
+  AMZN: ["Amazon", "AMZN", "Amazon.com"]
+# Companies people will ask about that are not loaded: decline instead of answering for the wrong firm.
+unavailable:
+  Meta: ["Meta", "Facebook", "META"]
+  Tesla: ["Tesla", "TSLA"]
+  JPMorgan: ["JPMorgan", "JP Morgan", "JPM"]
+  Netflix: ["Netflix", "NFLX"]
+  Intel: ["Intel", "INTC"]
+  AMD: ["AMD", "Advanced Micro Devices"]

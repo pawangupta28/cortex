@@ -1,5 +1,6 @@
 """Command line:  python -m cortex.cli <command>
 
+  --domain X  pick a domain pack (ecommerce, finance, ...); default from CORTEX_DOMAIN
   init        generate/load data, build the warehouse view, chunks and indexes
   ask "..."   ask one question (add --role regional_manager_sp to see row-level security)
   task "..."  run a multi-step investigation; --approve to approve its action
@@ -18,8 +19,13 @@ def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):        # Windows consoles default to cp1252
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
+    from cortex.config import available_domains, settings
     p = argparse.ArgumentParser(prog="cortex")
+    p.add_argument("--domain", default=None, help=f"domain pack: {', '.join(available_domains())}")
     sub = p.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("domains")
+    s = sub.add_parser("fetch-sec", help="download SEC filings for the finance domain (needs internet)")
+    s.add_argument("tickers", nargs="*")
     s = sub.add_parser("init")
     s.add_argument("--synthetic", action="store_true", help="force synthetic data even if Olist CSVs exist")
     s = sub.add_parser("ask")
@@ -37,6 +43,20 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--host", default="127.0.0.1")
     sub.add_parser("mcp")
     a = p.parse_args(argv)
+    if a.domain:
+        settings.use_domain(a.domain)
+        import os
+        os.environ["CORTEX_DOMAIN"] = a.domain      # for the API server process
+
+    if a.cmd == "domains":
+        for d in available_domains():
+            print(("* " if d == settings.domain else "  ") + d)
+        return 0
+    if a.cmd == "fetch-sec":
+        from cortex.connectors.sec_fetch import DEFAULT
+        from cortex.connectors.sec_fetch import main as fetch
+        fetch(a.tickers or DEFAULT)
+        return 0
 
     if a.cmd == "init":
         from cortex.ingest.loader import ingest
@@ -68,12 +88,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"approved -> {t['state']}; CRM tickets: {len(o.tickets())}")
         return 0
     if a.cmd == "eval":
-        from cortex.config import ROOT
-        from cortex.evals.harness import gate, run
+        from cortex.evals.harness import eval_dir, gate, run
         r = run()
-        print((ROOT / "evals" / "REPORT.md").read_text(encoding="utf-8"))
+        print((eval_dir() / "REPORT.md").read_text(encoding="utf-8"))
         if a.save_baseline:
-            (ROOT / "evals" / "baseline.json").write_text(encoding="utf-8", data=json.dumps(
+            (eval_dir() / "baseline.json").write_text(encoding="utf-8", data=json.dumps(
                 {"accuracy_overall": r["accuracy_overall"][0], "asr_defences_on": r["redteam"]["defences_on"]["asr"]}, indent=2))
             print("baseline saved")
         if a.gate:

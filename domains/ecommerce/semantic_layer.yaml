@@ -2,11 +2,19 @@
 # The LLM never writes metric math; it only picks metric + dimensions + filters.
 base_view: order_facts
 
+time:
+  column: purchased_at          # year / quarter / month filters apply here
+
+entities:                       # filters the parser recognises, resolved through glossary.yaml
+  category: {column: category, glossary: categories}
+  state: {column: customer_state, glossary: states, codes_case_sensitive: true}
+
 metrics:
   revenue:
     sql: "ROUND(SUM(revenue), 2)"
     description: "Total product revenue (sum of item prices), excluding freight"
     synonyms: [revenue, sales, gmv, turnover, "money made", income, sell, sold, "did we sell"]
+    format: number
   order_count:
     sql: "COUNT(DISTINCT order_id)"
     description: "Number of orders"
@@ -20,32 +28,38 @@ metrics:
     description: "Mean review score from 1 to 5"
     synonyms: ["review score", rating, "average rating", satisfaction, "customer satisfaction", "review scores"]
   one_star_rate:
+    higher_is_better: false
     sql: "ROUND(AVG(CASE WHEN review_score = 1 THEN 1.0 WHEN review_score IS NULL THEN NULL ELSE 0.0 END), 4)"
     description: "Share of reviews that are 1-star"
     synonyms: ["one star", "1-star", "1 star", "worst reviews"]
   late_delivery_rate:
+    higher_is_better: false
     sql: "ROUND(AVG(CASE WHEN is_late THEN 1.0 ELSE 0.0 END), 4)"
     where: "order_status = 'delivered'"
     description: "Share of delivered orders that arrived after the estimated date"
     synonyms: ["late delivery", "late deliveries", "late rate", "delayed", delays, "on-time", lateness, "shipping delays", "deliveries late", "delivered late", "arrive late", "arrives late", late]
   avg_delivery_days:
+    higher_is_better: false
     sql: "ROUND(AVG(delivery_days), 2)"
     where: "order_status = 'delivered'"
     description: "Average days from purchase to delivery"
     synonyms: ["delivery time", "days to deliver", "shipping time", "how long delivery takes", "how long does shipping take", "how long does delivery take", "how long do deliveries take", "delivery days"]
   freight_share:
+    higher_is_better: false
     sql: "ROUND(SUM(freight) / NULLIF(SUM(revenue), 0), 4)"
     description: "Freight cost as a share of revenue"
     synonyms: [freight, "shipping cost", "delivery cost"]
   repeat_customer_rate:
     sql: "ROUND(AVG(CASE WHEN customer_orders > 1 THEN 1.0 ELSE 0.0 END), 4)"
     grain: customer
+    grain_key: customer_unique_id
     description: "Share of unique customers who placed more than one order"
     synonyms: ["repeat customer", "repeat customers", "returning customers", retention, "repeat purchase", loyalty]
 
 dimensions:
   category:
     sql: category
+    min_group_size: 30          # don't rank categories on tiny samples
     synonyms: [category, categories, "product category", "product categories", "product line"]
   state:
     sql: customer_state
