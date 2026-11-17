@@ -15,6 +15,14 @@ Example finance answer, fully offline, with every number checked against its sou
 > Gross margin for NVDA went from 74.6% in 2024-Q3 to 75.0% in 2026-Q2 (+0.4 points) [E2]. The peak was 75.0% in 2025-Q4 [E1]. NVDA 10-Q (2026-08-26) Item 2 MD&A: Gross margin increased to 75.0% for the second quarter of fiscal year 2027 compared to 72.4% … due to improved mix from Blackwell Ultra. Gross margin for the first half of fiscal year 2026 was also impacted by a $4.5 billion charge associated with H20 excess inventory and purchase obligations. [E3]
 > *hybrid · confidence 0.96 · all numbers verified*
 
+## Documentation
+
+| Start here | Deep dives | Cross-cutting |
+| --- | --- | --- |
+| [Architecture](docs/architecture.md): system, request and agent diagrams, design principles | [1 Ingestion & domain packs](docs/layers/01-ingestion-and-domain-packs.md) · [2 Retrieval](docs/layers/02-retrieval.md) · [3 Semantic layer & text-to-SQL](docs/layers/03-semantic-layer-text-to-sql.md) · [4 Context engineering](docs/layers/04-context-engineering.md) · [5 Model gateway](docs/layers/05-model-gateway.md) · [6 Agents](docs/layers/06-agents-orchestration.md) · [7 Verification & uncertainty](docs/layers/07-verification-uncertainty.md) · [8 Integration (MCP, A2A)](docs/layers/08-integration.md) · [9 Observability & LLMOps](docs/layers/09-observability-llmops.md) | [Security](docs/security.md) · [Evaluation](docs/evaluation.md) · [Deployment](docs/deployment.md) · [Roadmap](docs/roadmap.md) · [Design records](docs/adr/) |
+
+Every page marks each component **Built · measured** (in this repo, tested, numbers from the eval reports) or **Designed** (specified, not yet implemented). All measured results so far come from the deterministic offline path; live-LLM runs are roadmap item 1.
+
 ## How a question flows
 
 ```
