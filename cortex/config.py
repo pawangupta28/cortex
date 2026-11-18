@@ -30,6 +30,15 @@ def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
 
+PLACEHOLDER_PREFIXES = ("your_", "your-", "<", "sk-xxx", "changeme")
+
+
+def _key(name: str) -> str:
+    """An API key, or "" if unset or still a template placeholder such as `your_groq_key`."""
+    v = _env(name).strip()
+    return "" if not v or v.lower().startswith(PLACEHOLDER_PREFIXES) else v
+
+
 @dataclass
 class ProviderConfig:
     name: str
@@ -81,14 +90,14 @@ class Settings:
         With no keys set, Cortex runs on its deterministic offline provider.
         """
         out: list[ProviderConfig] = []
-        if _env("GROQ_API_KEY"):
-            out.append(ProviderConfig("groq", _env("GROQ_BASE_URL", "https://api.groq.com/openai/v1"), _env("GROQ_API_KEY"),
+        if _key("GROQ_API_KEY"):
+            out.append(ProviderConfig("groq", _env("GROQ_BASE_URL", "https://api.groq.com/openai/v1"), _key("GROQ_API_KEY"),
                                       _env("GROQ_MODEL", "llama-3.3-70b-versatile"), 0.6))
-        if _env("GEMINI_API_KEY"):
+        if _key("GEMINI_API_KEY"):
             out.append(ProviderConfig("gemini", _env("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai"),
-                                      _env("GEMINI_API_KEY"), _env("GEMINI_MODEL", "gemini-2.5-flash"), 0.3))
-        if _env("OPENROUTER_API_KEY"):
-            out.append(ProviderConfig("openrouter", _env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"), _env("OPENROUTER_API_KEY"),
+                                      _key("GEMINI_API_KEY"), _env("GEMINI_MODEL", "gemini-2.5-flash"), 0.3))
+        if _key("OPENROUTER_API_KEY"):
+            out.append(ProviderConfig("openrouter", _env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"), _key("OPENROUTER_API_KEY"),
                                       _env("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free"), 0.0))
         return out
 

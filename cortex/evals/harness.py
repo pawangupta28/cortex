@@ -247,7 +247,8 @@ def live_stats(records: list[dict], gw) -> dict:
             "live_coverage": round(len(live) / len(records), 3) if records else 0.0,
             "accuracy_fully_live": bootstrap_ci([float(r["correct"]) for r in live]) if live else None,
             "accuracy_fully_live_by_type": by_type,
-            "calls_by_provider": dict(gw.calls), "tokens_by_provider": dict(gw.tokens)}
+            "calls_by_provider": dict(gw.calls), "tokens_by_provider": dict(gw.tokens),
+            "provider_errors": dict(gw.errors)}
 
 
 def run(write_report: bool = True, sample: int | None = None) -> dict:

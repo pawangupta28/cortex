@@ -15,6 +15,32 @@ import json
 import sys
 
 
+def doctor() -> int:
+    """One tiny request per configured provider; prints the real reason when one fails. Never prints keys."""
+    import os
+    from cortex.config import _env, _key, settings
+    from cortex.gateway.gateway import OpenAICompatProvider, ProviderError
+    for name in ("GROQ", "GEMINI", "OPENROUTER"):
+        raw = _env(f"{name}_API_KEY").strip()
+        state = "set" if _key(f"{name}_API_KEY") else ("PLACEHOLDER (replace it)" if raw else "not set")
+        print(f"{name}_API_KEY: {state}")
+    provs = settings.providers()
+    if not provs:
+        print("No live provider configured: Cortex will run offline. Put a real key in .env.")
+        return 1
+    os.environ["CORTEX_MIN_CALL_INTERVAL"] = "0"
+    bad = 0
+    for cfg in provs:
+        p = OpenAICompatProvider(cfg, timeout=30)
+        try:
+            res = p.chat([{"role": "user", "content": "Reply with the single word OK."}], max_tokens=5)
+            print(f"  OK    {cfg.name:<11} {cfg.model}  ({res.latency_s * 1000:.0f} ms, reply {res.text.strip()[:20]!r})")
+        except ProviderError as e:
+            bad += 1
+            print(f"  FAIL  {cfg.name:<11} {cfg.model}  -> {str(e)[:300]}")
+    return 1 if bad == len(provs) else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):        # Windows consoles default to cp1252
         if hasattr(stream, "reconfigure"):
@@ -43,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--port", type=int, default=8000)
     s.add_argument("--host", default="127.0.0.1")
     sub.add_parser("mcp")
+    sub.add_parser("doctor", help="check each configured LLM provider with one tiny request")
     a = p.parse_args(argv)
     if a.domain:
         settings.use_domain(a.domain)
@@ -58,6 +85,9 @@ def main(argv: list[str] | None = None) -> int:
         from cortex.connectors.sec_fetch import main as fetch
         fetch(a.tickers or DEFAULT)
         return 0
+
+    if a.cmd == "doctor":
+        return doctor()
 
     if a.cmd == "init":
         from cortex.ingest.loader import ingest
@@ -93,6 +123,12 @@ def main(argv: list[str] | None = None) -> int:
         r = run(sample=a.sample)
         name = "REPORT.llm.md" if r["mode"] == "online" else "REPORT.md"
         print((eval_dir() / name).read_text(encoding="utf-8"))
+        if r["mode"] == "online" and not r["llm"].get("fully_live_questions"):
+            print("\nWARNING: live mode, but no question was answered by a live model (every call fell back offline).")
+            for prov, err in r["llm"].get("provider_errors", {}).items():
+                print(f"  {prov}: {err}")
+            print("Run `python -m cortex.cli doctor` to test each provider. These numbers are NOT live-model numbers.")
+            return 2
         if a.save_baseline:
             (eval_dir() / "baseline.json").write_text(encoding="utf-8", data=json.dumps(
                 {"accuracy_overall": r["accuracy_overall"][0], "asr_defences_on": r["redteam"]["defences_on"]["asr"]}, indent=2))

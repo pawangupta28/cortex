@@ -118,6 +118,7 @@ class Gateway:
         self.retries = retries
         # per-provider call and token counters: lets the eval prove which answers came from a live model
         self.calls: dict[str, int] = {}
+        self.errors: dict[str, str] = {}        # last error per provider, surfaced by `doctor` and the eval
         self.tokens: dict[str, int] = {}
         self.router = BanditRouter(list(self.providers) or ["offline"],
                                    state_path=settings.artifacts_dir / "router_state.json")
@@ -170,6 +171,7 @@ class Gateway:
                 self.breakers[name].success()
                 return res
             except ProviderError as e:
+                self.errors[name] = str(e)[:300]
                 if e.retry_after is not None and attempt < self.retries:
                     time.sleep(min(e.retry_after, 60.0))     # rate limit: wait as told, not a provider fault
                     continue

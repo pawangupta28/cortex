@@ -69,3 +69,13 @@ def test_offline_fallback_is_counted_so_eval_never_credits_it_to_a_model():
     st = live_stats(recs, gw)
     assert st["fully_live_questions"] == 1 and st["live_coverage"] == round(1 / 3, 3)
     assert st["accuracy_fully_live"][0] == 1.0
+
+
+def test_placeholder_keys_do_not_enable_a_provider(monkeypatch):
+    from cortex.config import settings
+    monkeypatch.setenv("OPENROUTER_API_KEY", "your_openrouter_key")
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    assert settings.providers() == []
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_" + "a" * 52)
+    assert [p.name for p in settings.providers()] == ["groq"]
