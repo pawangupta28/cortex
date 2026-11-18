@@ -51,3 +51,21 @@ def test_dotenv_loads_without_overriding_real_env(tmp_path):
     os.environ["CORTEX_TEST_B"] = "real"
     _load_dotenv(env)
     assert os.environ["CORTEX_TEST_A"] == "from-file" and os.environ["CORTEX_TEST_B"] == "real"
+
+
+def test_offline_fallback_is_counted_so_eval_never_credits_it_to_a_model():
+    from cortex.evals.harness import live_stats
+    a = Fake("a", ["ok", ProviderError("quota")] + [ProviderError("quota")] * 10)
+    gw = _gw(a)
+    gw.retries = 0
+    msgs = [{"role": "user", "content": "x"}]
+    assert gw.complete("write", msgs, offline=lambda: "o").provider == "a"
+    for _ in range(4):
+        gw.complete("write", msgs, offline=lambda: "o")
+    assert gw.calls["a"] == 1 and gw.calls["offline"] == 4
+    recs = [{"type": "metric", "correct": True, "live_calls": 1, "offline_calls": 0},
+            {"type": "metric", "correct": True, "live_calls": 1, "offline_calls": 2},
+            {"type": "docs", "correct": False, "live_calls": 0, "offline_calls": 1}]
+    st = live_stats(recs, gw)
+    assert st["fully_live_questions"] == 1 and st["live_coverage"] == round(1 / 3, 3)
+    assert st["accuracy_fully_live"][0] == 1.0

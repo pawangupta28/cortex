@@ -235,6 +235,21 @@ def _sample(items: list[dict], n: int) -> list[dict]:
     return out
 
 
+def live_stats(records: list[dict], gw) -> dict:
+    """Separate answers a live model fully produced from ones that fell back offline (quota, outage).
+    Only fully-live answers count toward a model's accuracy."""
+    if not gw.online:
+        return {}
+    live = [r for r in records if r["live_calls"] and not r["offline_calls"]]
+    by_type = {t: bootstrap_ci([float(r["correct"]) for r in live if r["type"] == t])
+               for t in sorted({r["type"] for r in live})}
+    return {"fully_live_questions": len(live),
+            "live_coverage": round(len(live) / len(records), 3) if records else 0.0,
+            "accuracy_fully_live": bootstrap_ci([float(r["correct"]) for r in live]) if live else None,
+            "accuracy_fully_live_by_type": by_type,
+            "calls_by_provider": dict(gw.calls), "tokens_by_provider": dict(gw.tokens)}
+
+
 def run(write_report: bool = True, sample: int | None = None) -> dict:
     t0 = time.time()
     items = write_golden()
@@ -245,14 +260,18 @@ def run(write_report: bool = True, sample: int | None = None) -> dict:
     cx.conf = ConfidenceModel(load_saved=False, mode=mode)   # start uncalibrated: no saved weights or thresholds
     records = []
     for it in items:
+        before = dict(cx.gw.calls)
         ans = cx.ask(it["question"], use_cache=False)
+        delta = {k: v - before.get(k, 0) for k, v in cx.gw.calls.items() if v - before.get(k, 0)}
         sig = getattr(ans, "signals", None) or ans.__dict__.get("signals", {})
         records.append({"id": it["id"], "type": it["type"], "split": it["split"], "correct": grade(it, ans),
                         "intent": ans.intent.value,
                         "abstained": ans.abstained, "confidence": ans.confidence, "signals": sig,
                         "latency_ms": ans.latency_ms, "answer": ans.text[:300], "model": ans.model,
                         "rewritten": ans.__dict__.get("rewritten", False), "cost_usd": ans.cost_usd,
-                        "verified_rate": (sum(c.verified for c in ans.claims) / len(ans.claims)) if ans.claims else 0.0})
+                        "verified_rate": (sum(c.verified for c in ans.claims) / len(ans.claims)) if ans.claims else 0.0,
+                        "live_calls": sum(v for k, v in delta.items() if k != "offline"),
+                        "offline_calls": delta.get("offline", 0)})
 
     # --- accuracy by type
     acc = {}
@@ -323,7 +342,8 @@ def run(write_report: bool = True, sample: int | None = None) -> dict:
         "llm": {"models": sorted({r["model"] for r in records if r["model"]}),
                 "rewrite_rate": round(sum(r["rewritten"] for r in records) / len(records), 3),
                 "verified_sentence_rate": round(float(np.mean([r["verified_rate"] for r in records if not r["abstained"]] or [0])), 3),
-                "shadow_cost_usd": round(sum(r["cost_usd"] for r in records), 4)},
+                "shadow_cost_usd": round(sum(r["cost_usd"] for r in records), 4),
+                **live_stats(records, cx.gw)},
         "sample": sample,
         "failures": [{"id": r["id"], "answer": r["answer"]} for r in records if not r["correct"]][:25],
         "runtime_s": round(time.time() - t0, 1),
@@ -357,7 +377,19 @@ def to_markdown(r: dict) -> str:
           f"Latency p50 {r['latency_ms']['p50']} ms, p95 {r['latency_ms']['p95']} ms.", "",
           f"Models: {', '.join(r['llm']['models'])} · verifier-forced rewrites: {r['llm']['rewrite_rate']:.0%} of questions · "
           f"verified sentences: {r['llm']['verified_sentence_rate']:.0%} · shadow cost ${r['llm']['shadow_cost_usd']}"
-          + (f" · stratified sample of {r['sample']}" if r.get("sample") else ""), "",
+          + (f" · stratified sample of {r['sample']}" if r.get("sample") else ""), ""]
+    if r["llm"].get("accuracy_fully_live"):
+        m2, lo2, hi2 = r["llm"]["accuracy_fully_live"]
+        L += ["## Live-model accuracy", "",
+              f"{r['llm']['fully_live_questions']} of {r['n_questions']} questions ({r['llm']['live_coverage']:.0%}) were "
+              "answered entirely by a live model; the rest fell back to the offline path (rate limit or outage) "
+              "and are excluded here.", "",
+              "| Type | Accuracy (fully live) | CI |", "| --- | --- | --- |"]
+        for t, (a, b, c) in r["llm"]["accuracy_fully_live_by_type"].items():
+            L.append(f"| {t} | {a:.1%} | [{b:.1%}, {c:.1%}] |")
+        L += [f"| **overall** | **{m2:.1%}** | [{lo2:.1%}, {hi2:.1%}] |", "",
+              f"Calls by provider: {r['llm']['calls_by_provider']} · tokens: {r['llm']['tokens_by_provider']}", ""]
+    L += [
           "## Retrieval study (reference documents)", "", "| Retriever | Recall@3 | CI | Recall@1 | MRR |", "| --- | --- | --- | --- | --- |"]
     for mode in ("bm25", "dense", "hybrid"):
         x = r["retrieval"][mode]

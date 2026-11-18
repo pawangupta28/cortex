@@ -116,6 +116,9 @@ class Gateway:
                           for p in cfgs}
         self.breakers = {n: CircuitBreaker() for n in self.providers}
         self.retries = retries
+        # per-provider call and token counters: lets the eval prove which answers came from a live model
+        self.calls: dict[str, int] = {}
+        self.tokens: dict[str, int] = {}
         self.router = BanditRouter(list(self.providers) or ["offline"],
                                    state_path=settings.artifacts_dir / "router_state.json")
         self.router.load()
@@ -142,14 +145,22 @@ class Gateway:
                                 "gen_ai.usage.input_tokens": res.input_tokens,
                                 "gen_ai.usage.output_tokens": res.output_tokens,
                                 "cortex.cost_usd": round(res.cost_usd, 6), "cortex.fallback": name != first})
+                            self._count(name, res)
                             return res
             if offline is None:
                 raise ProviderError("no provider available and no offline fallback")
             t0 = time.time()
             text = offline()
             sp["attributes"].update({"gen_ai.system": "offline", "gen_ai.request.model": "offline-deterministic"})
-            return LLMResult(text, "offline-deterministic", "offline", estimate_tokens(prompt),
-                             estimate_tokens(text), time.time() - t0, 0.0)
+            res = LLMResult(text, "offline-deterministic", "offline", estimate_tokens(prompt),
+                            estimate_tokens(text), time.time() - t0, 0.0)
+            if self.providers:
+                self._count("offline", res)      # a live run fell back: the eval must not credit this to a model
+            return res
+
+    def _count(self, name: str, res: LLMResult) -> None:
+        self.calls[name] = self.calls.get(name, 0) + 1
+        self.tokens[name] = self.tokens.get(name, 0) + res.input_tokens + res.output_tokens
 
     def _try(self, name: str, messages, json_mode, max_tokens) -> LLMResult | None:
         prov = self.providers[name]
