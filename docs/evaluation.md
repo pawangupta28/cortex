@@ -42,6 +42,8 @@ Every design decision in Cortex cites a measured number, and every push is gated
 | Unanswerable declined | 100% | 100% |
 | Latency p50 / p95 (offline) | 28 / 59 ms | 37 / 55 ms |
 
+**Live model (finance, GPT-OSS-120B via Groq, 20-question stratified sample, 2026-11-18):** 95.0% (19/20), CI [85, 100]; all 20 answered fully by the live model; 81 calls, 40.6k tokens. Report: [`evals/finance/REPORT.llm.md`](../evals/finance/REPORT.llm.md). The one miss, "Apple tariff exposure", was declined as out of scope by the LLM planner: a false refusal, left in the report rather than tuned away.
+
 **Failures, reported rather than tuned away:**
 - **Finance:** "Where does NVIDIA manufacture its chips?" The answer (TSMC) is in the 10-K's Manufacturing section, but the question's wording doesn't match it. Lexical retrieval can't bridge that; a real embedding model is the planned fix.
 - **E-commerce:** "What if a product stops working after a month?" This was lost when the docs probe was made stricter to stop off-topic questions being answered from SEC text (ADR-019). Two hybrid paraphrases surface "late delivery" before the planted product theme.

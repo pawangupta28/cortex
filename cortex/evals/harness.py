@@ -383,8 +383,8 @@ def to_markdown(r: dict) -> str:
         m2, lo2, hi2 = r["llm"]["accuracy_fully_live"]
         L += ["## Live-model accuracy", "",
               f"{r['llm']['fully_live_questions']} of {r['n_questions']} questions ({r['llm']['live_coverage']:.0%}) were "
-              "answered entirely by a live model; the rest fell back to the offline path (rate limit or outage) "
-              "and are excluded here.", "",
+              "answered entirely by a live model" + ("; none fell back to the offline path." if r['llm']['live_coverage'] == 1 else
+              "; the rest fell back to the offline path (rate limit or outage) and are excluded here."), "",
               "| Type | Accuracy (fully live) | CI |", "| --- | --- | --- |"]
         for t, (a, b, c) in r["llm"]["accuracy_fully_live_by_type"].items():
             L.append(f"| {t} | {a:.1%} | [{b:.1%}, {c:.1%}] |")

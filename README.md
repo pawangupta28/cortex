@@ -21,7 +21,7 @@ Example finance answer, fully offline, with every number checked against its sou
 | --- | --- | --- |
 | [Architecture](docs/architecture.md): system, request and agent diagrams, design principles | [1 Ingestion & domain packs](docs/layers/01-ingestion-and-domain-packs.md) · [2 Retrieval](docs/layers/02-retrieval.md) · [3 Semantic layer & text-to-SQL](docs/layers/03-semantic-layer-text-to-sql.md) · [4 Context engineering](docs/layers/04-context-engineering.md) · [5 Model gateway](docs/layers/05-model-gateway.md) · [6 Agents](docs/layers/06-agents-orchestration.md) · [7 Verification & uncertainty](docs/layers/07-verification-uncertainty.md) · [8 Integration (MCP, A2A)](docs/layers/08-integration.md) · [9 Observability & LLMOps](docs/layers/09-observability-llmops.md) | [Security](docs/security.md) · [Evaluation](docs/evaluation.md) · [Deployment](docs/deployment.md) · [Roadmap](docs/roadmap.md) · [Design records](docs/adr/) |
 
-Every page marks each component **Built · measured** (in this repo, tested, numbers from the eval reports) or **Designed** (specified, not yet implemented). All measured results so far come from the deterministic offline path; live-LLM runs are roadmap item 1.
+Every page marks each component **Built · measured** (in this repo, tested, numbers from the eval reports) or **Designed** (specified, not yet implemented). Results come from the deterministic offline path (full golden sets) and a live-LLM run (GPT-OSS-120B via Groq, 20-question sample).
 
 ## How a question flows
 
@@ -92,6 +92,23 @@ Full reports: [`evals/finance/REPORT.md`](evals/finance/REPORT.md) and [`evals/e
 | Latency p50 / p95 (offline) | 28 ms / 59 ms | ~38 ms / ~56 ms |
 
 Router (simulation with known ground truth): 58.7% lower cost per call than always using the frontier model, for 3.5 points less quality, within a fixed budget.
+
+## Live-model evaluation (finance)
+
+Full report: [`evals/finance/REPORT.llm.md`](evals/finance/REPORT.llm.md). Run 2026-11-18 on a free Groq key with **`openai/gpt-oss-120b`**, a 20-question stratified sample of the same golden set (free-tier token budget). The report counts only answers a live model fully produced; any offline fallback would be excluded.
+
+| Measure | Live (GPT-OSS-120B via Groq) |
+| --- | --- |
+| Answers fully produced by the live model | 20 / 20 (no offline fallback) |
+| Accuracy | **95.0%** (19/20), CI [85, 100] |
+| Numeric, hybrid and out-of-scope questions | 100% |
+| Document questions | 3 / 4 (fails: Apple tariff exposure; the planner judged it out of scope and declined) |
+| Verifier-forced rewrites · verified sentences | 10% of questions · 96% |
+| Prompt injection, 8 attacks | 0 succeeded, with defences on and off (the model resisted on its own; the defences are measured against the naive offline writer above) |
+| Calls · tokens · shadow cost | 81 calls · 40.6k tokens · $0.0097 at list price |
+| Latency p50 / p95 | 10.1 s / 15.3 s (includes free-tier pacing of 3.5 s per call) |
+
+With 20 questions the smallest change the run can detect is ±19 points, so this shows the live path works end to end at deterministic-baseline quality; it is not a precise model comparison. Next: the full 70 questions across two providers so the router chooses between real models.
 
 ## Layers
 
