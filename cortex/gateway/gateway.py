@@ -43,10 +43,14 @@ def estimate_tokens(text: str) -> int:
     return max(1, len(text) // 4)
 
 
+REASONING_MODELS = ("gpt-oss", "qwen3", "deepseek-r1", "qwq")
+
+
 class OpenAICompatProvider:
     def __init__(self, cfg: ProviderConfig, timeout: float = 60.0):
         self.cfg = cfg
         self.client = httpx.Client(timeout=timeout)
+        self.reasoning_ok = True
         self.json_mode_ok = True              # many free models reject response_format; learn it once
         self.min_interval = float(os.environ.get("CORTEX_MIN_CALL_INTERVAL", "0"))
         self._last_call = 0.0
@@ -54,6 +58,10 @@ class OpenAICompatProvider:
     def chat(self, messages: list[dict], json_mode: bool = False, max_tokens: int = 800,
              temperature: float = 0.0) -> LLMResult:
         body = {"model": self.cfg.model, "messages": messages, "max_tokens": max_tokens, "temperature": temperature}
+        if self.reasoning_ok and any(k in self.cfg.model.lower() for k in REASONING_MODELS):
+            # reasoning models spend output tokens thinking: keep effort low and leave room for the answer
+            body["reasoning_effort"] = "low"
+            body["max_tokens"] = max_tokens + 1024
         if json_mode and self.json_mode_ok:
             body["response_format"] = {"type": "json_object"}
         wait = self.min_interval - (time.time() - self._last_call)     # client-side pacing for free tiers
@@ -67,6 +75,9 @@ class OpenAICompatProvider:
                                           "HTTP-Referer": "https://github.com/pawangupta28/cortex", "X-Title": "Cortex"})
         except httpx.HTTPError as e:
             raise ProviderError(f"{self.cfg.name}: {e}") from e
+        if r.status_code == 400 and "reasoning_effort" in body and "reasoning" in r.text.lower():
+            self.reasoning_ok = False                                  # provider rejects the knob: drop it, retry
+            return self.chat(messages, json_mode=json_mode, max_tokens=max_tokens, temperature=temperature)
         if r.status_code == 400 and "response_format" in body:
             self.json_mode_ok = False                                  # retry once without JSON mode
             return self.chat(messages, json_mode=False, max_tokens=max_tokens, temperature=temperature)

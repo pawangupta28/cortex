@@ -38,6 +38,18 @@ def doctor() -> int:
         except ProviderError as e:
             bad += 1
             print(f"  FAIL  {cfg.name:<11} {cfg.model}  -> {str(e)[:300]}")
+            if "404" in str(e) or "model" in str(e).lower():
+                try:   # the model id was retired or mistyped: show what this key can use
+                    r = p.client.get(f"{cfg.base_url}/models", headers={"Authorization": f"Bearer {cfg.api_key}"})
+                    ids = sorted(m.get("id", "") for m in r.json().get("data", []))
+                    skip = ("whisper", "tts", "guard", "embed", "orpheus", "playai", "distil")
+                    ids = [i for i in ids if not any(k in i.lower() for k in skip)]
+                    if cfg.name == "openrouter":
+                        ids = [i for i in ids if i.endswith(":free")]
+                    print(f"        models available to this key ({len(ids)}): " + ", ".join(ids[:40]))
+                    print(f"        set {cfg.name.upper()}_MODEL in .env to one of these")
+                except Exception as e2:  # noqa: BLE001
+                    print(f"        could not list models: {e2}")
     return 1 if bad == len(provs) else 0
 
 

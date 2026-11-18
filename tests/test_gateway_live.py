@@ -79,3 +79,24 @@ def test_placeholder_keys_do_not_enable_a_provider(monkeypatch):
     assert settings.providers() == []
     monkeypatch.setenv("GROQ_API_KEY", "gsk_" + "a" * 52)
     assert [p.name for p in settings.providers()] == ["groq"]
+
+
+def test_reasoning_models_get_low_effort_and_headroom_and_survive_rejection():
+    import json as _json
+    import httpx
+    from cortex.config import ProviderConfig
+    from cortex.gateway.gateway import OpenAICompatProvider
+    seen = []
+
+    def handler(req):
+        body = _json.loads(req.content)
+        seen.append(body)
+        if len(seen) == 1:
+            return httpx.Response(400, json={"error": {"message": "unknown parameter reasoning_effort"}})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}], "usage": {}})
+
+    p = OpenAICompatProvider(ProviderConfig("groq", "https://x/v1", "k", "openai/gpt-oss-120b", 0.0))
+    p.client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert p.chat([{"role": "user", "content": "hi"}], max_tokens=10).text == "OK"
+    assert seen[0]["reasoning_effort"] == "low" and seen[0]["max_tokens"] == 10 + 1024
+    assert "reasoning_effort" not in seen[1] and seen[1]["max_tokens"] == 10

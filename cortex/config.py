@@ -92,7 +92,7 @@ class Settings:
         out: list[ProviderConfig] = []
         if _key("GROQ_API_KEY"):
             out.append(ProviderConfig("groq", _env("GROQ_BASE_URL", "https://api.groq.com/openai/v1"), _key("GROQ_API_KEY"),
-                                      _env("GROQ_MODEL", "llama-3.3-70b-versatile"), 0.6))
+                                      _env("GROQ_MODEL", "openai/gpt-oss-120b"), 0.6))
         if _key("GEMINI_API_KEY"):
             out.append(ProviderConfig("gemini", _env("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai"),
                                       _key("GEMINI_API_KEY"), _env("GEMINI_MODEL", "gemini-2.5-flash"), 0.3))
